@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "352221315981",
+    "project_id": "ineed-a92ce",
+    "storage_bucket": "ineed-a92ce.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:352221315981:android:afd18195299ea43e96f3c4",
+        "android_client_info": {
+          "package_name": "lend.borrow.tool"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAWda7dK3Rm3kC3jGi65YZO5jslOFGEnaM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
