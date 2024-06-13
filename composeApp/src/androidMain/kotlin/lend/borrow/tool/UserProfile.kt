@@ -56,50 +56,49 @@ fun UserProfile(
         val dbTools: CollectionReference = db.collection("Tools")
         if (state.loading)
             CircularProgressIndicator(modifier = Modifier.wrapContentSize())
-        else
-            Column(
-                modifier
-                    .fillMaxSize()
-                    .padding(15.dp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
+        Column(
+            modifier
+                .fillMaxSize()
+                .padding(15.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
 
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 15.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "${user.name} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
+                Switch(checked = user.availableAtTheMoment, onCheckedChange = {
+                    user.availableAtTheMoment = it
+                })
+            }
+            Text(text = user.address, Modifier.padding(15.dp))
+            Text(
+                text = user.subscription,
+                Modifier
+                    .fillMaxWidth()
+                    .padding(15.dp)
+            )
+            SmallFloatingActionButton(
+                onClick = {
+                    openDialog.value = true
+                },
+                modifier
+                    .wrapContentSize()
+                    .align(Alignment.End)
+            ) {
                 Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 15.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    Modifier.padding(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Text(text = "${user.name} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
-                    Switch(checked = user.availableAtTheMoment, onCheckedChange = {
-                        user.availableAtTheMoment = it
-                    })
-                }
-                Text(text = user.address, Modifier.padding(15.dp))
-                Text(
-                    text = user.subscription,
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(15.dp)
-                )
-                SmallFloatingActionButton(
-                    onClick = {
-                        openDialog.value = true
-                    },
-                    modifier
-                        .wrapContentSize()
-                        .align(Alignment.End)
-                ) {
-                    Row(
-                        Modifier.padding(10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        Text(text = "Add tool")
-                        Icon(Icons.Filled.Add, "Small floating action button.")
-                    }
+                    Text(text = "Add tool")
+                    Icon(Icons.Filled.Add, "Small floating action button.")
                 }
             }
+        }
 
 
         if (openDialog.value)

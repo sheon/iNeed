@@ -1,5 +1,4 @@
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.Icon
@@ -12,10 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -24,8 +21,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import lend.borrow.tool.GlobalLoadingState
-import lend.borrow.tool.GlobalLoadingViewModel
 import lend.borrow.tool.RegisteredToolsScreen
 import lend.borrow.tool.UserProfile
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -39,8 +34,7 @@ enum class BorrowLendAppScreen(val title: String, modifier: Modifier = Modifier)
 
 @Composable
 @Preview
-fun BorrowLendApp(navController: NavHostController = rememberNavController(), progressViewModel: GlobalLoadingViewModel = GlobalLoadingViewModel()) {
-    val state by progressViewModel.state.collectAsState()
+fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentScreen = BorrowLendAppScreen.valueOf(
         backStackEntry?.destination?.route ?: BorrowLendAppScreen.ITEMS.name
@@ -52,8 +46,7 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController(), pr
                 BorrowLendAppBar(
                     currentScreen = currentScreen,
                     canNavigateBack = navController.previousBackStackEntry != null,
-                    navController = navController,
-                    somethingInProgress = state
+                    navController = navController
                 )
             }
         ) { innerPadding ->
@@ -88,16 +81,11 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController(), pr
 fun BorrowLendAppBar(
     currentScreen: BorrowLendAppScreen,
     canNavigateBack: Boolean,
-    navController: NavController,
-    modifier: Modifier = Modifier,
-    somethingInProgress: GlobalLoadingState
+    navController: NavController
 ) {
     TopAppBar(
         title = { Text(currentScreen.title) },
         backgroundColor = Color.Green,
-        modifier = modifier.clickable {
-            !somethingInProgress.loading
-        }.alpha(if (somethingInProgress.loading) 0.5f else 1f),
         navigationIcon = {
             if (canNavigateBack) {
                 IconButton(onClick = { navController.navigateUp() }) {
