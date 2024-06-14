@@ -47,7 +47,8 @@ android {
 }
 dependencies {
     implementation(libs.androidx.foundation.android)
-    implementation("dev.gitlive:firebase-firestore:1.8.1") // This line
-    implementation("dev.gitlive:firebase-common:1.8.1")// This line
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1") // This line
+    implementation("dev.gitlive:firebase-firestore:1.8.1")
+    implementation("dev.gitlive:firebase-common:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
+    implementation(libs.androidx.runtime.android)
 }

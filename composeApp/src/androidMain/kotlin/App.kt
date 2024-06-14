@@ -31,9 +31,7 @@ enum class BorrowLendAppScreen(val title: String, modifier: Modifier = Modifier)
     USER(title = "User profile")
 }
 
-
 @Composable
-@Preview
 fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentScreen = BorrowLendAppScreen.valueOf(
@@ -105,7 +103,7 @@ fun BorrowLendAppBar(
 }
 
 
-@androidx.compose.ui.tooling.preview.Preview
+@Preview
 @Composable
 fun AppAndroidPreview() {
     BorrowLendApp(navController = rememberNavController())

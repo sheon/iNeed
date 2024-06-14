@@ -18,7 +18,7 @@ data class ToolDownloadedFromFireBase(
     val id: String,
     val description: String,
     val images: List<String>, // Image name stored on Firebase storage
-    val tags: List<String>,
+    val tags: List<String>?,
     var available: Boolean = true,
     var borrower: User? = null,
 ) {

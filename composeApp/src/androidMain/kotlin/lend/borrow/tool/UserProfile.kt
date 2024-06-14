@@ -3,7 +3,7 @@ package lend.borrow.tool
 import ToolToBeUploadedToFireBase
 import User
 import android.content.Context
-import android.graphics.Bitmap
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -30,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.graphics.drawable.toBitmap
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
@@ -39,7 +38,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import user1
-import java.io.ByteArrayOutputStream
 import java.util.UUID
 
 @Composable
@@ -106,11 +104,11 @@ fun UserProfile(
                 openDialog.value = false
             }, {
                 openDialog.value = false
-            }, { tool, images ->
+            }, { tool ->
                 viewModel.loadingInProgress()
                 openDialog.value = false
                 GlobalScope.launch {// The scope should be fixed later
-                    uploadTool(tool, images, dbTools, context, viewModel)
+                    uploadTool(tool, dbTools, context, viewModel)
                 }
 
             })
@@ -125,40 +123,38 @@ fun UserProfilePreview() {
 
 suspend fun uploadTool(
     tool: ToolToBeUploadedToFireBase,
-    images: List<Int> = emptyList(),
     dbTools: CollectionReference,
     context: Context,
     viewModel: GlobalLoadingViewModel
 ) {
     val storage = Firebase.storage
     val uploadedImagesNameWithSuffix = mutableListOf<String>()
-    images.forEach { imageId ->
-        val testImage = context.resources.getDrawable(imageId).toBitmap()
-        val baos = ByteArrayOutputStream()
-        testImage.compress(Bitmap.CompressFormat.PNG, 100, baos)
-        val data = baos.toByteArray()
-        val imageNameWithSuffix = "${UUID.randomUUID()}.png"
-        val path = "tools/$imageNameWithSuffix"
-        val imageRef = storage.getReference(path)
-        val uploadTask = imageRef.putBytes(data)
-        uploadTask.continueWithTask {
-            if (!it.isSuccessful) {
+    tool.images.forEach { imageUUID ->
+        context.contentResolver.openInputStream(Uri.parse(imageUUID))?.use {
+            val  data = it.readAllBytes()
+            val imageNameWithSuffix = "${UUID.randomUUID()}.png"
+            val path = "tools/$imageNameWithSuffix"
+            val imageRef = storage.getReference(path)
+            val uploadTask = imageRef.putBytes(data)
+            uploadTask.continueWithTask {
+                if (!it.isSuccessful) {
+                    Toast.makeText(
+                        context,
+                        "Fail to upload the image \n$it",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                imageRef.downloadUrl
+            }.addOnSuccessListener { url ->
+                uploadedImagesNameWithSuffix.add(url.toString())
                 Toast.makeText(
                     context,
-                    "Fail to upload the image \n$it",
+                    "Image uploaded successfully ${url}",
                     Toast.LENGTH_SHORT
                 ).show()
-            }
-            imageRef.downloadUrl
-        }.addOnSuccessListener { url ->
-            uploadedImagesNameWithSuffix.add(url.toString())
-            Toast.makeText(
-                context,
-                "Image uploaded successfully ${url}",
-                Toast.LENGTH_SHORT
-            ).show()
-        }.await()
-        uploadTask.await()
+            }.await()
+            uploadTask.await()
+        }
     }
 
     tool.images = uploadedImagesNameWithSuffix

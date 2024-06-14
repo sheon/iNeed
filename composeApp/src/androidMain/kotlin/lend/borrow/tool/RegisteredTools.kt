@@ -11,16 +11,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
@@ -68,10 +68,10 @@ fun RegisteredToolsScreen(modifier: Modifier = Modifier) {
 
     var _data = mutableListOf<ToolDownloadedFromFireBase>()
     var data: List<ToolDownloadedFromFireBase> by remember {
-        mutableStateOf( mutableListOf())
+        mutableStateOf(mutableListOf())
     }
     toolsViewModel.getToolsFromRemote() {
-         _data.addAll(it)
+        _data.addAll(it)
         data = _data
     }
     var iNeedInput by rememberSaveable { mutableStateOf("") }
@@ -195,6 +195,7 @@ fun getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {
 
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ListItem(tool: ToolDownloadedFromFireBase, modifier: Modifier = Modifier) {
     var tool_tmp: ToolDownloadedFromFireBase by remember {
@@ -248,28 +249,34 @@ fun ListItem(tool: ToolDownloadedFromFireBase, modifier: Modifier = Modifier) {
             Text(text = tool.name, modifier = Modifier.padding(5.dp))
             Text(text = "Description: ", fontWeight = FontWeight.Bold)
             Text(text = tool.description, modifier = Modifier.padding(5.dp))
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 100.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(tool.tags) { tag ->
-                    Box(
-                        modifier = Modifier
-                            .background(
-                                color = Color.Black,
-                                shape = RoundedCornerShape(5.dp)
+            if (tool.tags?.isNotEmpty() == true)
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .padding(top = 5.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    tool.tags?.forEach { tag ->
+                        Box(
+                            modifier = Modifier
+                                .wrapContentWidth()
+                                .background(
+                                    color = Color.Black,
+                                    shape = RoundedCornerShape(5.dp)
+                                )
+                                .alpha(toolAvailability),
+                            Alignment.Center
+                        ) {
+                            Text(
+                                text = tag.trim(),
+                                Modifier.padding(horizontal = 5.dp),
+                                color = Color.White
                             )
-                            .alpha(toolAvailability),
-                        Alignment.Center
-                    ) {
-                        Text(text = tag, Modifier.padding(horizontal = 5.dp), color = Color.White)
+                        }
                     }
                 }
-            }
             var isFavorite: Boolean by remember {
                 mutableStateOf(user1.favoriteTools.contains(tool.id))
             }
@@ -280,10 +287,10 @@ fun ListItem(tool: ToolDownloadedFromFireBase, modifier: Modifier = Modifier) {
                 Button(enabled = tool.available,
                     modifier = Modifier.alpha(toolAvailability),
                     onClick = {
-                    tool.available = false
-                    tool_tmp = tool
-                }) {
-                    Text("Can I borrow?")
+                        tool.available = false
+                        tool_tmp = tool
+                    }) {
+                    Text("May I borrow this item?")
                 }
                 Image(
                     painterResource(if (isFavorite) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
@@ -291,7 +298,9 @@ fun ListItem(tool: ToolDownloadedFromFireBase, modifier: Modifier = Modifier) {
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
                         .clickable {
-                            if(isFavorite) user1.favoriteTools.remove(tool.id) else user1.favoriteTools.add(tool.id)
+                            if (isFavorite) user1.favoriteTools.remove(tool.id) else user1.favoriteTools.add(
+                                tool.id
+                            )
                         }
                         .align(Alignment.CenterVertically)
                         .alpha(toolAvailability),
