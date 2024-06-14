@@ -158,7 +158,7 @@ fun RegisteredToolsScreen(modifier: Modifier = Modifier) {
 }
 
 fun getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {
-    val apiKey = "sk-proj-KgYVOCjIqIQ78WHg9g1kT3BlbkFJdIcAhzwXxzOcUjfazkk6"
+    val apiKey = "sk-proj-GSCTlUyShkJoJ8yaHMmNT3BlbkFJKZJ0nCGTkj2281p0ZiGx"
     val url = "https://api.openai.com/v1/chat/completions"
     val client = OkHttpClient()
     Log.v("Ehsan", "question: $question")
@@ -179,7 +179,7 @@ fun getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {
 
         override fun onResponse(call: Call, response: Response) {
             val body = response.body?.string()
-
+            Log.v("Ehsan", "response: ${body}")
             val jsonObject = JSONObject(body)
             val jsonArray: JSONArray = jsonObject.getJSONArray("choices")
             Log.v("Ehsan", "choices: ${jsonArray}")

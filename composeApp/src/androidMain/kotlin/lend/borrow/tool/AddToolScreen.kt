@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.TextButton
@@ -28,12 +30,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -61,21 +61,16 @@ fun CustomDialogWithResult(
         var toolTags: String? by rememberSaveable { mutableStateOf(null) }
         var toolValue by rememberSaveable { mutableStateOf(0) }
         var takingPics by rememberSaveable { mutableStateOf(false) }
-        val file = context.createImageFile()
-        val uri = FileProvider.getUriForFile(
-            Objects.requireNonNull(context),
-            BuildConfig.APPLICATION_ID + ".provider", file
-        )
+        lateinit var uri: Uri
 
-        var capturedImageUri by remember {
-            mutableStateOf<Uri?>(null)
-        }
+        var capturedImageUriList = mutableListOf<Uri>()
+
 
         val cameraLauncher =
             rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {
                 if (it) {
+                    capturedImageUriList.add(uri)
                     takingPics = false
-                    capturedImageUri = uri
                 }
             }
 
@@ -84,6 +79,7 @@ fun CustomDialogWithResult(
         ) {
             if (it) {
                 Toast.makeText(context, "Permission Granted", Toast.LENGTH_SHORT).show()
+                uri = context.createImageFile()
                 cameraLauncher.launch(uri)
             } else {
                 Toast.makeText(context, "Permission Denied", Toast.LENGTH_SHORT).show()
@@ -111,6 +107,7 @@ fun CustomDialogWithResult(
 
                 if (takingPics) {
                     if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
+                        uri = context.createImageFile()
                         cameraLauncher.launch(uri)
                     } else {
                         // Request a permission
@@ -176,20 +173,25 @@ fun CustomDialogWithResult(
                             .wrapContentHeight(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(100.dp),
-                                horizontalArrangement = Arrangement.Center
-                            ) {
+                        LazyRow(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(100.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            items(capturedImageUriList.ifEmpty {
+                                val placeHolder = context.getDrawable(R.drawable.baseline_image_24)
+                                placeHolder?.alpha = 20
+                                listOf(placeHolder)
+                            }) {
                                 AsyncImage(
-                                    model = if (capturedImageUri?.path?.isNotEmpty() == true) capturedImageUri else context.getDrawable(R.drawable.baseline_image_24),
+                                    model = it,
                                     modifier = Modifier
-                                        .padding(16.dp, 8.dp)
-                                        .alpha(if (capturedImageUri?.path?.isNotEmpty() == true) 1f else 0.2f),
+                                        .padding(16.dp, 8.dp),
                                     contentDescription = null
                                 )
                             }
+                        }
                         IconButton(onClick = {
                             takingPics = true
                         }) {
@@ -219,9 +221,7 @@ fun CustomDialogWithResult(
                                 toolName,
                                 toolDescription,
                                 tags = toolTags?.split(",") ?: emptyList(),
-                                images = capturedImageUri?.let {
-                                    listOf(it.toString())
-                                }?: emptyList()
+                                images = capturedImageUriList.map { it.toString() }.toList()
                             )
                         )
                     }) {
@@ -233,7 +233,7 @@ fun CustomDialogWithResult(
     }
 }
 
-fun Context.createImageFile(): File {
+fun Context.createImageFile(): Uri {
     // Create an image file name
     val uuid = UUID.randomUUID().toString()
     val image = File.createTempFile(
@@ -241,5 +241,9 @@ fun Context.createImageFile(): File {
         ".jpg",
         externalCacheDir
     )
-    return image
+    val uri = FileProvider.getUriForFile(
+        Objects.requireNonNull(this),
+        BuildConfig.APPLICATION_ID + ".provider", image
+    )
+    return uri
 }
