@@ -2,6 +2,7 @@ package lend.borrow.tool
 
 import ToolDownloadedFromFireBase
 import android.app.Activity
+import android.content.Context
 import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
@@ -106,7 +107,7 @@ fun RegisteredToolsScreen(modifier: Modifier = Modifier) {
                                         it.name.equals(iNeedInput, true)
                                     }
                                 } else
-                                    getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
+                                    context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
                                         Log.v("Ehsan", "Tools are: $it")
                                         val tempList = mutableListOf<ToolDownloadedFromFireBase>()
                                         it.forEach { requiredTool ->
@@ -157,8 +158,8 @@ fun RegisteredToolsScreen(modifier: Modifier = Modifier) {
 
 }
 
-fun getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {
-    val apiKey = "sk-proj-GSCTlUyShkJoJ8yaHMmNT3BlbkFJKZJ0nCGTkj2281p0ZiGx"
+fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {
+    val apiKey = getString(lend.borrow.tool.R.string.api_key)
     val url = "https://api.openai.com/v1/chat/completions"
     val client = OkHttpClient()
     Log.v("Ehsan", "question: $question")
