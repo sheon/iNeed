@@ -46,6 +46,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.auth.auth
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
 import okhttp3.Call
@@ -62,100 +64,102 @@ import java.io.IOException
 
 
 @Composable
-fun RegisteredToolsScreen(modifier: Modifier = Modifier) {
+fun RegisteredToolsScreen(modifier: Modifier = Modifier, loginViewModel: LoginViewModel) {
+    val auth = Firebase.auth
+    if (auth.currentUser == null) {
+        LoginScreen({},loginViewModel)
+    } else {
+        val context = LocalContext.current
+        val toolsViewModel = ToolsViewModel((context as Activity).application)
 
-    val context = LocalContext.current
-    val toolsViewModel = ToolsViewModel((context as Activity).application)
-
-    var _data = mutableListOf<ToolDownloadedFromFireBase>()
-    var data: List<ToolDownloadedFromFireBase> by remember {
-        mutableStateOf(mutableListOf())
-    }
-    toolsViewModel.getToolsFromRemote() {
-        _data.addAll(it)
-        data = _data
-    }
-    var iNeedInput by rememberSaveable { mutableStateOf("") }
-    Column(
-        modifier
-            .fillMaxWidth()
-            .fillMaxHeight(),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            text = "I need",
-            modifier = Modifier
-                .padding(horizontal = 10.dp)
-                .padding(horizontal = 10.dp)
-        )
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 10.dp)
-                .border(2.dp, Color.Gray, shape = RoundedCornerShape(300.dp))
+        var _data = mutableListOf<ToolDownloadedFromFireBase>()
+        var data: List<ToolDownloadedFromFireBase> by remember {
+            mutableStateOf(mutableListOf())
+        }
+        toolsViewModel.getToolsFromRemote() {
+            _data.addAll(it)
+            data = _data
+        }
+        var iNeedInput by rememberSaveable { mutableStateOf("") }
+        Column(
+            modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row {
-                Image(
-                    painterResource(R.drawable.magnify),
-                    contentDescription = "",
-                    modifier = Modifier
-                        .clickable {
-                            if (iNeedInput.isNotBlank()) {
-                                if (iNeedInput.split(" ").size == 1) {
-                                    data = _data.filter {
-                                        it.name.equals(iNeedInput, true)
-                                    }
-                                } else
-                                    context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
-                                        Log.v("Ehsan", "Tools are: $it")
-                                        val tempList = mutableListOf<ToolDownloadedFromFireBase>()
-                                        it.forEach { requiredTool ->
-                                            tempList.addAll(_data.filter { availableTool ->
-                                                availableTool.name
-                                                    .replace(" ", "")
-                                                    .equals(requiredTool.replace(" ", ""), true)
-                                            })
+            Text(
+                text = "I need",
+                modifier = Modifier
+                    .padding(horizontal = 10.dp)
+                    .padding(horizontal = 10.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 10.dp)
+                    .border(2.dp, Color.Gray, shape = RoundedCornerShape(300.dp))
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+            ) {
+                Row {
+                    Image(
+                        painterResource(R.drawable.magnify),
+                        contentDescription = "",
+                        modifier = Modifier
+                            .clickable {
+                                if (iNeedInput.isNotBlank()) {
+                                    if (iNeedInput.split(" ").size == 1) {
+                                        data = _data.filter {
+                                            it.name.equals(iNeedInput, true)
                                         }
-                                        data = tempList
-                                    }
+                                    } else
+                                        context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
+                                            Log.v("Ehsan", "Tools are: $it")
+                                            val tempList = mutableListOf<ToolDownloadedFromFireBase>()
+                                            it.forEach { requiredTool ->
+                                                tempList.addAll(_data.filter { availableTool ->
+                                                    availableTool.name
+                                                        .replace(" ", "")
+                                                        .equals(requiredTool.replace(" ", ""), true)
+                                                })
+                                            }
+                                            data = tempList
+                                        }
 
-                            } else
+                                } else
+                                    data = _data
+                            }
+                            .align(Alignment.CenterVertically)
+                    )
+                    TextField(
+                        value = iNeedInput,
+                        onValueChange = {
+                            iNeedInput = it
+                            if (it.isBlank())
                                 data = _data
-                        }
-                        .align(Alignment.CenterVertically)
-                )
-                TextField(
-                    value = iNeedInput,
-                    onValueChange = {
-                        iNeedInput = it
-                        if (it.isBlank())
-                            data = _data
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    colors = TextFieldDefaults.textFieldColors(backgroundColor = Color.Transparent)
-                )
-            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        colors = TextFieldDefaults.textFieldColors(backgroundColor = Color.Transparent)
+                    )
+                }
 
-        }
-        LazyColumn(
-            Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .background(Color.LightGray)
-        ) {
-            items(count = data.size,
-                key = {
-                    data[it].id
-                },
-                itemContent = { index ->
-                    ListItem(data[index])
-                })
+            }
+            LazyColumn(
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .background(Color.LightGray)
+            ) {
+                items(count = data.size,
+                    key = {
+                        data[it].id
+                    },
+                    itemContent = { index ->
+                        ListItem(data[index])
+                    })
+            }
         }
     }
-
-
 }
 
 fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {

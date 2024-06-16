@@ -51,4 +51,6 @@ dependencies {
     implementation("dev.gitlive:firebase-common:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
     implementation(libs.androidx.runtime.android)
+    implementation(libs.firebase.auth)
+    implementation(libs.kotlinx.coroutines.core)
 }

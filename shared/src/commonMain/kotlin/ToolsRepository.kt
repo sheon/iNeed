@@ -1,7 +1,7 @@
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
 
-class ToolsRepository {
+class ToolsRepository(user: User) {
     val db: FirebaseFirestore = FirebaseFirestore.getInstance()
     val dbTools: CollectionReference = db.collection("Tools")
 

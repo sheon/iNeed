@@ -46,6 +46,9 @@ kotlin {
             implementation (libs.firebase.firestore)
             implementation(project.dependencies.platform(libs.firebase.bom))
             implementation(libs.firebase.storage)
+            implementation(libs.firebase.common)
+            implementation(libs.firebase.auth)
+            implementation(libs.kotlinx.coroutines.android)
         }
     }
 }

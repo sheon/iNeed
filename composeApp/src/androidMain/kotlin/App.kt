@@ -21,6 +21,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.auth.auth
+import lend.borrow.tool.AuthenticationService
+import lend.borrow.tool.LoginViewModel
 import lend.borrow.tool.RegisteredToolsScreen
 import lend.borrow.tool.UserProfile
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -33,6 +37,7 @@ enum class BorrowLendAppScreen(val title: String, modifier: Modifier = Modifier)
 
 @Composable
 fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
+    val loginViewModel = LoginViewModel(AuthenticationService(auth = Firebase.auth))
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentScreen = BorrowLendAppScreen.valueOf(
         backStackEntry?.destination?.route ?: BorrowLendAppScreen.ITEMS.name
@@ -59,7 +64,8 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     RegisteredToolsScreen(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = 15.dp)
+                            .padding(top = 15.dp),
+                        loginViewModel
                     )
                 }
                 composable("USER") {
@@ -109,8 +115,8 @@ fun AppAndroidPreview() {
     BorrowLendApp(navController = rememberNavController())
 }
 
-val user1 = User("Ehsan", "Bagaregate 23, Nykopping", true)
-val user2 = User("Jack", "Bagaregate 21, Nykopping", false)
+val user1 = User("", "Ehsan", "Bagaregate 23, Nykopping", true)
+val user2 = User("", "Jack", "Bagaregate 21, Nykopping", false)
 
 
 //        listOf(

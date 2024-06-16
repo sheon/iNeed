@@ -11,8 +11,8 @@ androidx-espresso-core = "3.5.1"
 androidx-material = "1.12.0"
 androidx-test-junit = "1.1.5"
 compose-plugin = "1.6.10"
+firebase = "1.12.0"
 firebaseBom = "33.1.0"
-firebaseFirestore = "25.0.0"
 gson = "2.10.1"
 junit = "4.13.2"
 kotlin = "2.0.0"
@@ -22,14 +22,14 @@ navigationCompose = "2.7.7"
 material3Android = "1.2.1"
 ktor = "2.3.11"
 coroutines = "1.8.0"
-firebase = "4.4.0"
-firebaseFirestoreKtx = "25.0.0"
 runtimeAndroid = "1.6.7"
 
 [libraries]
+firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "firebase" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
-firebase-firestore = { module = "com.google.firebase:firebase-firestore", version.ref = "firebaseFirestore" }
-firebase-storage = { module = "com.google.firebase:firebase-storage" }
+firebase-common = { module = "dev.gitlive:firebase-common", version.ref = "firebase" }
+firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "firebase" }
+firebase-storage = { module = "dev.gitlive:firebase-storage", version.ref = "firebase" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
@@ -50,8 +50,6 @@ ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "kto
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
-firebaseApp = { module = "com.google.gms:google-service", version.ref ="firebase"}
-firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
 androidx-runtime-android = { group = "androidx.compose.runtime", name = "runtime-android", version.ref = "runtimeAndroid" }
 
 [plugins]
