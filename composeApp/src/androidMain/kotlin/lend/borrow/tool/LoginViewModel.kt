@@ -23,9 +23,14 @@ class LoginViewModel(
     private val _passwordError = MutableStateFlow(false)
     val passwordError = _passwordError.asStateFlow()
 
+    private val _confirmPasswordError = MutableStateFlow(false)
+    val confirmPasswordError = _confirmPasswordError.asStateFlow()
+
     private val _currentUser = MutableStateFlow<User?>(null)
     val currentUser = _currentUser.asStateFlow()
 
+    private val _isSigningUp = MutableStateFlow(false)
+    val isSigningUp = _isSigningUp.asStateFlow()
 
     private val isButtonEnabled: StateFlow<Boolean> = combine(uiState) { states ->
         val state = states.first()
@@ -56,6 +61,12 @@ class LoginViewModel(
         if (newValue.isNotBlank()) _passwordError.value = false
     }
 
+    fun onConfirmPasswordChange(newValue: String) {
+        _uiState.update { it.copy(confirmPassword = newValue) }
+        //reset error
+        _confirmPasswordError.value = false
+    }
+
     fun onSignInClick() {
 
         if (_uiState.value.email.isEmpty()) {
@@ -64,19 +75,42 @@ class LoginViewModel(
         }
 
         if (_uiState.value.password.isEmpty()) {
-            _emailError.value = true
+            _passwordError.value = true
             return
         }
 
         launchWithCatchingException {
             _isProcessing.value = true
-            //val result = authService.createUser(_uiState.value.email, _uiState.value.password)
             authService.authenticate(_uiState.value.email, _uiState.value.password)
             _isProcessing.value = false
         }
 
     }
 
+    fun onSignUpClick() {
+
+        if (_uiState.value.email.isEmpty()) {
+            _emailError.value = true
+            return
+        }
+
+        if (_uiState.value.password.isEmpty()) {
+            _passwordError.value = true
+            return
+        }
+
+        if (_uiState.value.confirmPassword.isEmpty()) {
+            _confirmPasswordError.value = true
+            return
+        }
+
+        launchWithCatchingException {
+            _isProcessing.value = true
+            authService.createUser(_uiState.value.email, _uiState.value.password)
+            _isProcessing.value = false
+        }
+
+    }
 
     fun onSignOut() {
         launchWithCatchingException {
@@ -88,5 +122,6 @@ class LoginViewModel(
 
 data class LoginUiState(
     val email: String = "",
-    val password: String = ""
+    val password: String = "",
+    val confirmPassword: String = ""
 )

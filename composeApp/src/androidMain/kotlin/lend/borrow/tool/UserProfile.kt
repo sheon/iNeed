@@ -1,20 +1,24 @@
 package lend.borrow.tool
 
+import BorrowLendAppScreen
 import ToolToBeUploadedToFireBase
 import User
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -28,8 +32,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.FirebaseFirestore
@@ -37,56 +42,67 @@ import com.google.firebase.storage.storage
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import user1
 import java.util.UUID
 
 @Composable
 fun UserProfile(
     user: User,
-    modifier: Modifier = Modifier,
-    viewModel: GlobalLoadingViewModel = GlobalLoadingViewModel()
+    viewModel: GlobalLoadingViewModel = GlobalLoadingViewModel(),
+    loginViewModel: LoginViewModel,
+    navController: NavController
 ) {
     val state by viewModel.state.collectAsState()
-    MaterialTheme {
-        val context = LocalContext.current
-        val openDialog = remember { mutableStateOf(false) }
-        val db: FirebaseFirestore = FirebaseFirestore.getInstance()
-        val dbTools: CollectionReference = db.collection("Tools")
-        if (state.loading)
-            CircularProgressIndicator(modifier = Modifier.wrapContentSize())
-        Column(
-            modifier
-                .fillMaxSize()
-                .padding(15.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
+    val context = LocalContext.current
+    val openDialog = remember { mutableStateOf(false) }
+    val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    val dbTools: CollectionReference = db.collection("Tools")
+    if (state.loading)
+        CircularProgressIndicator(modifier = Modifier.wrapContentSize())
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .padding(15.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
 
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 15.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(text = "${user.name} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
-                Switch(checked = user.availableAtTheMoment, onCheckedChange = {
-                    user.availableAtTheMoment = it
-                })
-            }
-            Text(text = user.address, Modifier.padding(15.dp))
-            Text(
-                text = user.subscription,
-                Modifier
-                    .fillMaxWidth()
-                    .padding(15.dp)
-            )
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 15.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(text = "${user.name} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
+            Switch(checked = user.availableAtTheMoment, onCheckedChange = {
+                user.availableAtTheMoment = it
+            })
+        }
+        Text(
+            text = user.address, Modifier
+                .fillMaxWidth()
+                .padding(15.dp)
+        )
+        Text(
+            text = user.subscription,
+            Modifier
+                .fillMaxWidth()
+                .padding(15.dp)
+        )
+
+        ClickableText(text = AnnotatedString("Sign out")) {
+            loginViewModel.onSignOut()
+            navController.navigate(BorrowLendAppScreen.LOGIN.name)
+        }
+        Row (Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.Bottom) {
             SmallFloatingActionButton(
                 onClick = {
                     openDialog.value = true
                 },
-                modifier
+                Modifier
                     .wrapContentSize()
-                    .align(Alignment.End)
             ) {
                 Row(
                     Modifier.padding(10.dp),
@@ -98,29 +114,26 @@ fun UserProfile(
             }
         }
 
-
-        if (openDialog.value)
-            CustomDialogWithResult({
-                openDialog.value = false
-            }, {
-                openDialog.value = false
-            }, { tool ->
-                viewModel.loadingInProgress()
-                openDialog.value = false
-                GlobalScope.launch {// The scope should be fixed later
-                    uploadTool(tool, dbTools, context, viewModel)
-                }
-
-            })
     }
+
+
+    if (openDialog.value)
+        CustomDialogWithResult({
+            openDialog.value = false
+        }, {
+            openDialog.value = false
+        }, { tool ->
+            viewModel.loadingInProgress()
+            openDialog.value = false
+            GlobalScope.launch {// The scope should be fixed later
+                uploadTool(tool, dbTools, context, viewModel)
+            }
+
+        })
 }
 
-@Preview
-@Composable
-fun UserProfilePreview() {
-    UserProfile(user = user1, viewModel = GlobalLoadingViewModel())
-}
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 suspend fun uploadTool(
     tool: ToolToBeUploadedToFireBase,
     dbTools: CollectionReference,
@@ -131,7 +144,7 @@ suspend fun uploadTool(
     val uploadedImagesNameWithSuffix = mutableListOf<String>()
     tool.images.forEach { imageUUID ->
         context.contentResolver.openInputStream(Uri.parse(imageUUID))?.use {
-            val  data = it.readAllBytes()
+            val data = it.readAllBytes()
             val imageNameWithSuffix = "${UUID.randomUUID()}.png"
             val path = "tools/$imageNameWithSuffix"
             val imageRef = storage.getReference(path)

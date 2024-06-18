@@ -14,10 +14,12 @@ import kotlinx.coroutines.launch
 open class BaseViewModel() : ViewModel() {
     internal val _isProcessing = MutableStateFlow(false)
     val isProcessing = _isProcessing.asStateFlow()
-    private val _loginErrorMessage = MutableStateFlow<String?>(null)
-    val loginErrorMessage = _loginErrorMessage.asStateFlow()
+
+    internal val _latestErrorMessage = MutableStateFlow<String?>(null)
+    val loginErrorMessage = _latestErrorMessage.asStateFlow()
+
     val coroutineContext = SupervisorJob() + CoroutineExceptionHandler { _, throwable ->
-        _loginErrorMessage.update {
+        _latestErrorMessage.update {
             throwable.message
         }
         println("BaseViewModel: Error: ${throwable.message}")

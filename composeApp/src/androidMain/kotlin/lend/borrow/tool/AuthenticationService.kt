@@ -42,12 +42,11 @@ class AuthenticationService(
     }
 
     override suspend fun signOut() {
-        if (auth.currentUser?.isAnonymous == true) {
-            auth.currentUser?.delete()
-        }
-
-        auth.signOut()
-
-        //create  new user anonymous session
+        scope.async {
+            if (auth.currentUser?.isAnonymous == true) {
+                auth.currentUser?.delete()
+            }
+            auth.signOut()
+        }.await()
     }
 }

@@ -1,6 +1,9 @@
-
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
@@ -11,10 +14,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -24,58 +31,69 @@ import androidx.navigation.compose.rememberNavController
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import lend.borrow.tool.AuthenticationService
+import lend.borrow.tool.LoginScreen
 import lend.borrow.tool.LoginViewModel
 import lend.borrow.tool.RegisteredToolsScreen
 import lend.borrow.tool.UserProfile
-import org.jetbrains.compose.ui.tooling.preview.Preview
 
 
 enum class BorrowLendAppScreen(val title: String, modifier: Modifier = Modifier) {
-    ITEMS(title = "Items to borrow"),
+    LOGIN(title = "Log in"),
+    TOOLS(title = "Items to borrow"),
     USER(title = "User profile")
 }
 
 @Composable
-fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
-    val loginViewModel = LoginViewModel(AuthenticationService(auth = Firebase.auth))
+fun BorrowLendApp(navController: NavHostController = rememberNavController(), loginViewModel: LoginViewModel = LoginViewModel(AuthenticationService(auth = Firebase.auth))) {
+
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentScreen = BorrowLendAppScreen.valueOf(
-        backStackEntry?.destination?.route ?: BorrowLendAppScreen.ITEMS.name
+        backStackEntry?.destination?.route ?: BorrowLendAppScreen.TOOLS.name
     )
+    val user: State<User?> = loginViewModel.currentUser.collectAsState()
     MaterialTheme {
 
         Scaffold(
             topBar = {
                 BorrowLendAppBar(
                     currentScreen = currentScreen,
-                    canNavigateBack = navController.previousBackStackEntry != null,
-                    navController = navController
+                    navController = navController,
+                    user
                 )
             }
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = BorrowLendAppScreen.ITEMS.name,
+                startDestination = if (user.value == null)
+                    BorrowLendAppScreen.LOGIN.name
+                else
+                    BorrowLendAppScreen.TOOLS.name,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                composable("ITEMS") {
-                    RegisteredToolsScreen(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = 15.dp),
-                        loginViewModel
+                composable(BorrowLendAppScreen.LOGIN.name) {
+                    LoginScreen(
+                        Modifier
+                            .fillMaxSize(),
+                        loginViewModel,
+                        navController
                     )
                 }
-                composable("USER") {
-                    UserProfile(
-                        user1,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(top = 15.dp)
-                    )
+                composable(BorrowLendAppScreen.TOOLS.name) {
+                    RegisteredToolsScreen(user.value, loginViewModel = loginViewModel)
                 }
+
+                composable(BorrowLendAppScreen.USER.name) {
+                    user.value?.let { user ->
+                        UserProfile(
+                            user,
+                            loginViewModel = loginViewModel,
+                            navController = navController
+                        )
+                    }
+                }
+
             }
         }
     }
@@ -84,72 +102,56 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
 @Composable
 fun BorrowLendAppBar(
     currentScreen: BorrowLendAppScreen,
-    canNavigateBack: Boolean,
-    navController: NavController
+    navController: NavController,
+    user: State<User?>
 ) {
-    TopAppBar(
-        title = { Text(currentScreen.title) },
-        backgroundColor = Color.Green,
-        navigationIcon = {
-            if (canNavigateBack) {
-                IconButton(onClick = { navController.navigateUp() }) {
-                    Icon(
-                        imageVector = Icons.Filled.ArrowBack,
-                        contentDescription = "Back"
-                    )
+    TopAppBar(backgroundColor = Color.Green) {
+        Box(Modifier.fillMaxSize()) {
+            Row(Modifier.wrapContentSize(), verticalAlignment = Alignment.CenterVertically) {
+                when {
+                    user.value == null && navController.currentDestination?.route == BorrowLendAppScreen.LOGIN.name -> {
+                        null
+                    }
+
+                    user.value == null && navController.currentDestination?.route == BorrowLendAppScreen.TOOLS.name -> {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(
+                                imageVector = Icons.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
+
+                    user.value != null && navController.currentDestination?.route == BorrowLendAppScreen.TOOLS.name -> {
+                        IconButton(onClick = {
+                            navController.navigate(BorrowLendAppScreen.USER.name)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = "Profile Btn"
+                            )
+                        }
+                    }
+
+                    navController.currentDestination?.route == BorrowLendAppScreen.USER.name -> {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(
+                                imageVector = Icons.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    }
                 }
-            } else
-                IconButton(onClick = {
-                    navController.navigate("user")
-                }) {
-                    Icon(imageVector = Icons.Filled.Person, contentDescription = "Profile Btn")
-                }
+            }
+            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    currentScreen.title,
+                    Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.W900
+                )
+            }
         }
-    )
+    }
 }
 
-
-@Preview
-@Composable
-fun AppAndroidPreview() {
-    BorrowLendApp(navController = rememberNavController())
-}
-
-val user1 = User("", "Ehsan", "Bagaregate 23, Nykopping", true)
-val user2 = User("", "Jack", "Bagaregate 21, Nykopping", false)
-
-
-//        listOf(
-//            ToolToBeCreated(
-//                "drilling machine",
-//                "It has hammer function",
-//                listOf(
-//                    R.drawable.hammer_drill,
-//                    R.drawable.hammer_drill_usecase1,
-//                    R.drawable.hammer_drill_parts
-//                ),
-//                tags = listOf("Electronic", "Heavy duty"),
-//                //owner = user1
-//            ),
-//            ToolToBeCreated(
-//                "Handsaw",
-//                "It is a classic wood saw",
-//                listOf(
-//                    R.drawable.saw,
-//                    R.drawable.saw_wood_usecase1,
-//                    R.drawable.saw_woods_usecase2
-//                ),
-//                tags = listOf("Manual"),
-//                //owner = user2
-//            ),
-//            ToolToBeCreated(
-//                "Hammer",
-//                "To drive/draw a nail into/from a wall or wood.",
-//                listOf(
-//                    R.drawable.hammer,
-//                    R.drawable.hammer_usecase1
-//                ),
-//                tags = listOf("Manual"),
-//                //owner = user1
-//            )
-//        )

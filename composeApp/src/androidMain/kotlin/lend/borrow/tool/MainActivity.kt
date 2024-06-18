@@ -4,13 +4,15 @@ import BorrowLendApp
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.auth.auth
 
 class MainActivity : ComponentActivity() {
-    //val viewModel by viewModels<GlobalLoadingViewModel>() //This is for test for now
+    val loginViewModel = LoginViewModel(AuthenticationService(auth = Firebase.auth))
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            BorrowLendApp()
+            BorrowLendApp(loginViewModel = loginViewModel)
         }
     }
 }

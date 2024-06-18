@@ -1,6 +1,7 @@
 package lend.borrow.tool
 
 import ToolDownloadedFromFireBase
+import User
 import android.app.Activity
 import android.content.Context
 import android.util.Log
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -32,6 +34,7 @@ import androidx.compose.material.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -46,8 +49,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import dev.gitlive.firebase.Firebase
-import dev.gitlive.firebase.auth.auth
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
 import okhttp3.Call
@@ -59,104 +60,96 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
-import user1
 import java.io.IOException
 
 
 @Composable
-fun RegisteredToolsScreen(modifier: Modifier = Modifier, loginViewModel: LoginViewModel) {
-    val auth = Firebase.auth
-    if (auth.currentUser == null) {
-        LoginScreen({},loginViewModel)
-    } else {
-        val context = LocalContext.current
-        val toolsViewModel = ToolsViewModel((context as Activity).application)
+fun RegisteredToolsScreen(user: User?,
+                          loginViewModel: LoginViewModel
+) {
+    val context = LocalContext.current
+    val toolsViewModel = ToolsViewModel((context as Activity).application)
 
-        var _data = mutableListOf<ToolDownloadedFromFireBase>()
-        var data: List<ToolDownloadedFromFireBase> by remember {
-            mutableStateOf(mutableListOf())
-        }
-        toolsViewModel.getToolsFromRemote() {
-            _data.addAll(it)
-            data = _data
-        }
-        var iNeedInput by rememberSaveable { mutableStateOf("") }
-        Column(
-            modifier
+    var _data = mutableListOf<ToolDownloadedFromFireBase>()
+    var data: List<ToolDownloadedFromFireBase> by remember {
+        mutableStateOf(mutableListOf())
+    }
+    toolsViewModel.getToolsFromRemote() {
+        _data.addAll(it)
+        data = _data
+    }
+    var iNeedInput by rememberSaveable { mutableStateOf("") }
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(top = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = "I need",
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
+                .padding(horizontal = 10.dp)
+        )
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
+                .border(2.dp, Color.Gray, shape = RoundedCornerShape(300.dp))
                 .fillMaxWidth()
-                .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = 20.dp)
         ) {
-            Text(
-                text = "I need",
-                modifier = Modifier
-                    .padding(horizontal = 10.dp)
-                    .padding(horizontal = 10.dp)
-            )
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 10.dp)
-                    .border(2.dp, Color.Gray, shape = RoundedCornerShape(300.dp))
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-            ) {
-                Row {
-                    Image(
-                        painterResource(R.drawable.magnify),
-                        contentDescription = "",
-                        modifier = Modifier
-                            .clickable {
-                                if (iNeedInput.isNotBlank()) {
-                                    if (iNeedInput.split(" ").size == 1) {
-                                        data = _data.filter {
-                                            it.name.equals(iNeedInput, true)
-                                        }
-                                    } else
-                                        context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
-                                            Log.v("Ehsan", "Tools are: $it")
-                                            val tempList = mutableListOf<ToolDownloadedFromFireBase>()
-                                            it.forEach { requiredTool ->
-                                                tempList.addAll(_data.filter { availableTool ->
-                                                    availableTool.name
-                                                        .replace(" ", "")
-                                                        .equals(requiredTool.replace(" ", ""), true)
-                                                })
-                                            }
-                                            data = tempList
-                                        }
-
+            Row {
+                Image(
+                    painterResource(R.drawable.magnify),
+                    contentDescription = "",
+                    modifier = Modifier
+                        .clickable {
+                            if (iNeedInput.isNotBlank()) {
+                                if (iNeedInput.split(" ").size == 1) {
+                                    data = _data.filter {
+                                        it.name.equals(iNeedInput, true)
+                                    }
                                 } else
-                                    data = _data
-                            }
-                            .align(Alignment.CenterVertically)
-                    )
-                    TextField(
-                        value = iNeedInput,
-                        onValueChange = {
-                            iNeedInput = it
-                            if (it.isBlank())
-                                data = _data
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        colors = TextFieldDefaults.textFieldColors(backgroundColor = Color.Transparent)
-                    )
-                }
+                                    context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
+                                        Log.v("Ehsan", "Tools are: $it")
+                                        val tempList = mutableListOf<ToolDownloadedFromFireBase>()
+                                        it.forEach { requiredTool ->
+                                            tempList.addAll(_data.filter { availableTool ->
+                                                availableTool.name
+                                                    .replace(" ", "")
+                                                    .equals(requiredTool.replace(" ", ""), true)
+                                            })
+                                        }
+                                        data = tempList
+                                    }
 
-            }
-            LazyColumn(
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .background(Color.LightGray)
-            ) {
-                items(count = data.size,
-                    key = {
-                        data[it].id
+                            } else
+                                data = _data
+                        }
+                        .align(Alignment.CenterVertically)
+                )
+                TextField(
+                    value = iNeedInput,
+                    onValueChange = {
+                        iNeedInput = it
+                        if (it.isBlank())
+                            data = _data
                     },
-                    itemContent = { index ->
-                        ListItem(data[index])
-                    })
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    colors = TextFieldDefaults.textFieldColors(backgroundColor = Color.Transparent)
+                )
+            }
+
+        }
+        LazyColumn(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .background(Color.LightGray)
+        ) {
+            items(data) {
+                ListItem(it, user)
             }
         }
     }
@@ -202,7 +195,7 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ListItem(tool: ToolDownloadedFromFireBase, modifier: Modifier = Modifier) {
+fun ListItem(tool: ToolDownloadedFromFireBase, user: User?) {
     var tool_tmp: ToolDownloadedFromFireBase by remember {
         mutableStateOf(tool)
     }
@@ -211,7 +204,7 @@ fun ListItem(tool: ToolDownloadedFromFireBase, modifier: Modifier = Modifier) {
         mutableFloatStateOf(if (tool.available) 1f else 0.5f)
     }
     Card(
-        modifier
+        Modifier
             .fillMaxWidth()
             .padding(
                 15.dp
@@ -250,6 +243,8 @@ fun ListItem(tool: ToolDownloadedFromFireBase, modifier: Modifier = Modifier) {
 
                 }
             }
+            Text(text = "Tool id: ", fontWeight = FontWeight.Bold)
+            Text(text = tool.id, modifier = Modifier.padding(5.dp))
             Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
             Text(text = tool.name, modifier = Modifier.padding(5.dp))
             Text(text = "Description: ", fontWeight = FontWeight.Bold)
@@ -282,39 +277,45 @@ fun ListItem(tool: ToolDownloadedFromFireBase, modifier: Modifier = Modifier) {
                         }
                     }
                 }
-            var isFavorite: Boolean by remember {
-                mutableStateOf(user1.favoriteTools.contains(tool.id))
-            }
-            Row(
-                modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(enabled = tool.available,
-                    modifier = Modifier.alpha(toolAvailability),
-                    onClick = {
-                        tool.available = false
-                        tool_tmp = tool
-                    }) {
-                    Text("May I borrow this item?")
+            user?.let {
+                var favorites = remember {
+                    Log.v("Ehsan", "Favorite tools:  id: ${user.favoriteTools}  this tool: ${tool.id}")
+                    mutableStateListOf<String>()
                 }
-                Image(
-                    painterResource(if (isFavorite) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
-                    contentDescription = "",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .clickable {
-                            if (isFavorite) user1.favoriteTools.remove(tool.id) else user1.favoriteTools.add(
-                                tool.id
-                            )
-                        }
-                        .align(Alignment.CenterVertically)
-                        .alpha(toolAvailability),
-                )
+                favorites.addAll(user.favoriteTools)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Button(enabled = tool.available,
+                        modifier = Modifier.alpha(toolAvailability),
+                        onClick = {
+                            tool.available = false
+                            tool_tmp = tool
+                        }) {
+                        Text("May I borrow this item?")
+                    }
+                    Image(
+                        painterResource(if (favorites.contains(tool.id)) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
+                        contentDescription = "",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .clickable {
+                                if (favorites.contains(tool.id)) { // This should be revised and use the single source of the truth.
+                                    user.favoriteTools.remove(tool.id)
+                                    favorites.remove(tool.id)
+                                } else {
+                                    user.favoriteTools.add(tool.id)
+                                    favorites.add(tool.id)
+                                }
+                            }
+                            .align(Alignment.CenterVertically)
+                            .alpha(toolAvailability),
+                    )
 
+                }
             }
-
         }
-
     }
 }
 
