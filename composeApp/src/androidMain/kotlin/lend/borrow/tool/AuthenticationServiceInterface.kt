@@ -1,14 +1,12 @@
 package lend.borrow.tool
-import User
-import kotlinx.coroutines.flow.Flow
+import dev.gitlive.firebase.auth.AuthResult
+
 interface AuthenticationServiceInterface {
     val currentUserId: String
     val isAuthenticated: Boolean
 
-    val currentUser: Flow<User?>
-
-    suspend fun authenticate(email: String, password: String)
-    suspend fun createUser(email: String, password: String)
+    suspend fun authenticate(email: String, password: String, callBack: (AuthResult) -> Unit)
+    suspend fun createUser(email: String, password: String, callBack: (AuthResult) -> Unit)
 
     suspend fun signOut()
 }

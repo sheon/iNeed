@@ -6,23 +6,15 @@ class ToolsRepository(user: User) {
     val dbTools: CollectionReference = db.collection("Tools")
 
 
-    suspend fun getAvailableTools(retrieveData: (List<ToolDownloadedFromFireBase>) -> Unit) {
-        val toolList = mutableListOf<ToolDownloadedFromFireBase>()
+    suspend fun getAvailableTools(retrieveData: (List<Tool>) -> Unit) {
+        val toolList = mutableListOf<Tool>()
         dbTools.get()
             .addOnSuccessListener { queryDocumentSnapshots ->
                 if (!queryDocumentSnapshots.isEmpty) {
-                    // if the snapshot is not empty we are
-                    // hiding our progress bar and adding
-                    // our data in a list.
-                    // loadingPB.setVisibility(View.GONE)
                     val list = queryDocumentSnapshots.documents
                     for (d in list) {
-                        // after getting this list we are passing that
-                        // list to our object class.
-                        val c: ToolDownloadedFromFireBase? = d.toObject(ToolDownloadedFromFireBase::class.java)
-                        // and we will pass this object class inside
-                        // our arraylist which we have created for list view.
-                        c?.let { toolList.add(it.copy(id = d.id)) }
+                        val c: Tool? = d.toObject(Tool::class.java)
+                        c?.let { toolList.add(it.copy(id = d.id)) } // This ID will be used only in the app after the tool is fetched and there is not need to store it on FireStore.
                         println("Ehsan: ID: ${d.id}")
                         println("Ehsan: Reference: ${d.reference}")
 
@@ -30,14 +22,9 @@ class ToolsRepository(user: User) {
                     retrieveData.invoke(toolList)
                     println("Ehsan: $toolList")
                 } else {
-                    // if the snapshot is empty we are displaying
-                    // a toast message.
                     println("Ehsan: No data found in Database")
                 }
             }
-            // if we don't get any data or any error
-            // we are displaying a toast message
-            // that we do not get any data
             .addOnFailureListener {
                 println("Ehsan: Fail to get the data.")
             }

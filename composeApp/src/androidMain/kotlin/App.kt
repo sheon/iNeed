@@ -1,3 +1,5 @@
+import android.app.Application
+import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,7 +46,7 @@ enum class BorrowLendAppScreen(val title: String, modifier: Modifier = Modifier)
 }
 
 @Composable
-fun BorrowLendApp(navController: NavHostController = rememberNavController(), loginViewModel: LoginViewModel = LoginViewModel(AuthenticationService(auth = Firebase.auth))) {
+fun BorrowLendApp(navController: NavHostController = rememberNavController(), loginViewModel: LoginViewModel = LoginViewModel(application = Application(),  AuthenticationService(auth = Firebase.auth))) {
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentScreen = BorrowLendAppScreen.valueOf(
@@ -62,10 +64,10 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController(), lo
                 )
             }
         ) { innerPadding ->
+            Log.v("Ehsan1", "scaffold innerPadding: ${user.value}")
             NavHost(
                 navController = navController,
-                startDestination = if (user.value == null)
-                    BorrowLendAppScreen.LOGIN.name
+                startDestination = if (user.value == null) BorrowLendAppScreen.LOGIN.name
                 else
                     BorrowLendAppScreen.TOOLS.name,
                 modifier = Modifier
@@ -81,7 +83,7 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController(), lo
                     )
                 }
                 composable(BorrowLendAppScreen.TOOLS.name) {
-                    RegisteredToolsScreen(user.value, loginViewModel = loginViewModel)
+                    RegisteredToolsScreen(user.value)
                 }
 
                 composable(BorrowLendAppScreen.USER.name) {

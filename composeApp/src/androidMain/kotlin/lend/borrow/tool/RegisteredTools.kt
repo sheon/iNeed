@@ -1,6 +1,6 @@
 package lend.borrow.tool
 
-import ToolDownloadedFromFireBase
+import Tool
 import User
 import android.app.Activity
 import android.content.Context
@@ -64,18 +64,16 @@ import java.io.IOException
 
 
 @Composable
-fun RegisteredToolsScreen(user: User?,
-                          loginViewModel: LoginViewModel
-) {
+fun RegisteredToolsScreen(user: User?) {
     val context = LocalContext.current
     val toolsViewModel = ToolsViewModel((context as Activity).application)
 
-    var _data = mutableListOf<ToolDownloadedFromFireBase>()
-    var data: List<ToolDownloadedFromFireBase> by remember {
+    var _data = mutableListOf<Tool>()
+    var data: List<Tool> by remember {
         mutableStateOf(mutableListOf())
     }
     toolsViewModel.getToolsFromRemote() {
-        _data.addAll(it)
+        _data.addAll(it.filter { it.owner != user?.id })
         data = _data
     }
     var iNeedInput by rememberSaveable { mutableStateOf("") }
@@ -112,7 +110,7 @@ fun RegisteredToolsScreen(user: User?,
                                 } else
                                     context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
                                         Log.v("Ehsan", "Tools are: $it")
-                                        val tempList = mutableListOf<ToolDownloadedFromFireBase>()
+                                        val tempList = mutableListOf<Tool>()
                                         it.forEach { requiredTool ->
                                             tempList.addAll(_data.filter { availableTool ->
                                                 availableTool.name
@@ -149,7 +147,7 @@ fun RegisteredToolsScreen(user: User?,
                 .background(Color.LightGray)
         ) {
             items(data) {
-                ListItem(it, user)
+                ListItem(it, user, toolsViewModel)
             }
         }
     }
@@ -195,11 +193,14 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ListItem(tool: ToolDownloadedFromFireBase, user: User?) {
-    var tool_tmp: ToolDownloadedFromFireBase by remember {
+fun ListItem(tool: Tool, user: User?, toolsViewModel: ToolsViewModel) {
+    var tool_tmp: Tool by remember {
         mutableStateOf(tool)
     }
-
+    var favorites = remember {
+        mutableStateListOf<String>()
+    }
+    favorites.addAll(user?.favoriteTools ?: emptyList())
     val toolAvailability: Float by remember {
         mutableFloatStateOf(if (tool.available) 1f else 0.5f)
     }
@@ -278,11 +279,6 @@ fun ListItem(tool: ToolDownloadedFromFireBase, user: User?) {
                     }
                 }
             user?.let {
-                var favorites = remember {
-                    Log.v("Ehsan", "Favorite tools:  id: ${user.favoriteTools}  this tool: ${tool.id}")
-                    mutableStateListOf<String>()
-                }
-                favorites.addAll(user.favoriteTools)
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -303,10 +299,14 @@ fun ListItem(tool: ToolDownloadedFromFireBase, user: User?) {
                             .clickable {
                                 if (favorites.contains(tool.id)) { // This should be revised and use the single source of the truth.
                                     user.favoriteTools.remove(tool.id)
-                                    favorites.remove(tool.id)
+                                    toolsViewModel.updateUserFavoriteTools(user) {
+                                        favorites.remove(tool.id)
+                                    }
                                 } else {
                                     user.favoriteTools.add(tool.id)
-                                    favorites.add(tool.id)
+                                    toolsViewModel.updateUserFavoriteTools(user) {
+                                        favorites.add(tool.id)
+                                    }
                                 }
                             }
                             .align(Alignment.CenterVertically)

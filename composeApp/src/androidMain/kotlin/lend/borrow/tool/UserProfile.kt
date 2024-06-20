@@ -1,7 +1,7 @@
 package lend.borrow.tool
 
 import BorrowLendAppScreen
-import ToolToBeUploadedToFireBase
+import Tool
 import User
 import android.content.Context
 import android.net.Uri
@@ -122,11 +122,12 @@ fun UserProfile(
             openDialog.value = false
         }, {
             openDialog.value = false
-        }, { tool ->
+        }, { toolName, toolDescription, tags, images ->
             viewModel.loadingInProgress()
             openDialog.value = false
+            val tempTool = Tool(toolName, "", toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), owner = user.id)
             GlobalScope.launch {// The scope should be fixed later
-                uploadTool(tool, dbTools, context, viewModel)
+                uploadTool(tempTool, dbTools, context, viewModel)
             }
 
         })
@@ -135,7 +136,7 @@ fun UserProfile(
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 suspend fun uploadTool(
-    tool: ToolToBeUploadedToFireBase,
+    tool: Tool,
     dbTools: CollectionReference,
     context: Context,
     viewModel: GlobalLoadingViewModel
@@ -170,7 +171,7 @@ suspend fun uploadTool(
         }
     }
 
-    tool.images = uploadedImagesNameWithSuffix
+    tool.images.addAll(uploadedImagesNameWithSuffix)
     dbTools.add(tool).addOnSuccessListener {
         // after the data addition is successful
         // we are displaying a success toast message.
@@ -181,8 +182,6 @@ suspend fun uploadTool(
         ).show()
         viewModel.loadingFinished()
     }.addOnFailureListener { e ->
-        // this method is called when the data addition process is failed.
-        // displaying a toast message when data addition is failed.
         Toast.makeText(context, "Fail to add course \n$e", Toast.LENGTH_SHORT)
             .show()
         viewModel.loadingFinished()

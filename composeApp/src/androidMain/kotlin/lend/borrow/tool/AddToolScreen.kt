@@ -1,6 +1,5 @@
 package lend.borrow.tool
 
-import ToolToBeUploadedToFireBase
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -52,7 +51,7 @@ import java.util.UUID
 fun CustomDialogWithResult(
     onDismiss: () -> Unit,
     onNegativeClick: () -> Unit,
-    onPositiveClick: (ToolToBeUploadedToFireBase) -> Unit
+    onPositiveClick: (String, String, List<String>, List<String>) -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
         val context = LocalContext.current
@@ -216,14 +215,7 @@ fun CustomDialogWithResult(
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     TextButton(onClick = {
-                        onPositiveClick(
-                            ToolToBeUploadedToFireBase(
-                                toolName,
-                                toolDescription,
-                                tags = toolTags?.split(",") ?: emptyList(),
-                                images = capturedImageUriList.map { it.toString() }.toList()
-                            )
-                        )
+                        onPositiveClick(toolName, toolDescription, toolTags?.split(",") ?: emptyList(), capturedImageUriList.map { it.toString() }.toList())
                     }) {
                         Text(text = "OK")
                     }

@@ -1,13 +1,14 @@
 package lend.borrow.tool
 
 import BorrowLendAppScreen
-import User
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -30,6 +31,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.FixedScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -44,7 +47,6 @@ fun LoginScreen(modifier: Modifier = Modifier, loginViewModel: LoginViewModel, n
     val passwordError by loginViewModel.passwordError.collectAsState()
     val isProcessing by loginViewModel.isProcessing.collectAsState()
     val isButtonEnabled by loginViewModel.isProcessing.collectAsState()
-    val currentUser by loginViewModel.currentUser.collectAsState()
     val loginError by loginViewModel.loginErrorMessage.collectAsState()
 
 
@@ -54,8 +56,7 @@ fun LoginScreen(modifier: Modifier = Modifier, loginViewModel: LoginViewModel, n
         onPasswordChange = loginViewModel::onPasswordChange,
         onConfirmPasswordChange = loginViewModel::onConfirmPasswordChange,
         isProcessing = isProcessing,
-        currentUser = currentUser,
-        errorMessage = if (emailError || passwordError) "Error in email or password!" else if(loginError != null) loginError else null,
+        errorMessage = loginError,
         loginViewModel = loginViewModel,
         navController = navController
     )
@@ -71,7 +72,6 @@ fun LoginScreenContent(
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
     isProcessing: Boolean,
-    currentUser: User?,
     errorMessage: String?,
     loginViewModel: LoginViewModel,
     navController: NavController
@@ -94,7 +94,12 @@ fun LoginScreenContent(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
+            Image(painterResource(
+                R.drawable.toolbox_svgrepo_com),
+                contentDescription = "",
+                contentScale = FixedScale(0.2F),
+                modifier = Modifier.fillMaxSize()
+            )
             Spacer(modifier = Modifier.height(32.dp))
 
             OutlinedTextField(
@@ -146,14 +151,14 @@ fun LoginScreenContent(
                 ) {
                     Text(if (isSigningUp) "SIGN UP" else "SIGN IN")
                 }
-                if (isSigningUp.not()){
+
 
                     HorizontalDivider(Modifier.padding(vertical = 16.dp, horizontal = 40.dp), thickness = 1.dp, color = Color.LightGray)
 
                     ClickableText(
-                        text = AnnotatedString("Sign up") ,
+                        text = AnnotatedString(if (isSigningUp.not()) "Sign up" else "Sign in") ,
                         onClick = {
-                            isSigningUp = true
+                            isSigningUp = !isSigningUp
                         })
 
                     HorizontalDivider(Modifier.padding(vertical = 16.dp, horizontal = 40.dp), thickness = 1.dp, color = Color.LightGray)
@@ -163,21 +168,17 @@ fun LoginScreenContent(
                         onClick = {
                             navController.navigate(BorrowLendAppScreen.TOOLS.name)
                         })
-                }
 
 
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            //This is just for example, Ideally user will go to some other screen after login
-            if(currentUser != null && !currentUser.isAnonymous) {
-                navController.navigate(BorrowLendAppScreen.TOOLS.name)
-            }
-
             AnimatedVisibility(errorMessage != null) {
                 Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-                    Text(errorMessage!! , color = MaterialTheme.colorScheme.error)
+                    errorMessage?.let {
+                        Text( it, color = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
 

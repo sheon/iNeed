@@ -14,11 +14,14 @@ enum class UserSchedule{
 }
 
 @Serializable
-data class User(val id: String, val name: String, val address: String, var availableAtTheMoment: Boolean = true, val profilePic: Int? = null, var subscription: String = "free", var availableDays: UserSchedule = UserSchedule.EVERYDAY, val availableTime: Long = 0, var isAnonymous: Boolean = true ) {
-    val isAvailable: Boolean
-        get() = availableAtTheMoment // And checks for more detailed schedules
-    val favoriteTools = mutableListOf<String>()
-    val ownTools = mutableListOf<String>()
-    val borrowedTools = mutableListOf<String>()
-    val lentTools = mutableListOf<String>()
-}
+data class User(
+    val id: String = "",
+    val name: String = "",
+    val address: String = "",
+    var availableAtTheMoment: Boolean = true,
+    var subscription: String = "free",
+    val favoriteTools: MutableList<String> = mutableListOf<String>(),
+    val ownTools: MutableList<String> = mutableListOf<String>(),
+    val borrowedTools: MutableList<String> = mutableListOf<String>(),
+    val lentTools: MutableList<String> = mutableListOf<String>()
+) // The initial values are for the serializable in order to parse FirebaseUser to User directly.

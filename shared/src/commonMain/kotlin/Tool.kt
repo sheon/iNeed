@@ -1,26 +1,16 @@
 import kotlinx.serialization.Serializable
 
-@Serializable
-data class ToolToBeUploadedToFireBase(
-    val name: String,
-    val description: String,
-    var images: List<String> = emptyList(), // Drawable IDs
-    val tags: List<String>,
-//    val owner: User = User("", ""),
-    var favorite: Boolean = false,
-    var available: Boolean = true,
-    var borrower: User? = null
-)
 
 @Serializable
-data class ToolDownloadedFromFireBase(
+data class Tool(
     val name: String,
-    val id: String,
+    var id: String,
     val description: String,
-    val images: List<String>, // Image name stored on Firebase storage
-    val tags: List<String>?,
+    val images: MutableList<String>, // Image name stored on Firebase storage
+    val tags: MutableList<String>?,
     var available: Boolean = true,
-    var borrower: User? = null,
+    val owner: String, // User Id
+    var borrower: String? = null, // User Id
 ) {
-    constructor() : this("", "", "", emptyList(), emptyList(), available = false)
+    constructor() : this("", "", "", mutableListOf(), mutableListOf(), available = false, "")
 }

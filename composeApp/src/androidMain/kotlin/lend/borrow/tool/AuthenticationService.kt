@@ -1,13 +1,16 @@
 package lend.borrow.tool
 
 import User
+import android.util.Log
+import com.google.firebase.firestore.CollectionReference
+import com.google.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.auth.AuthResult
 import dev.gitlive.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.tasks.await
 
 class AuthenticationService(
     val auth: FirebaseAuth,
@@ -18,26 +21,28 @@ class AuthenticationService(
         get() = auth.currentUser?.uid.toString()
     override val isAuthenticated: Boolean
         get() = auth.currentUser != null && auth.currentUser?.isAnonymous == false
-    override val currentUser: Flow<User?> = auth.authStateChanged.map {
-        it?.let {
-            User(
-                it.uid,
-                "",
-                "",
-                isAnonymous = it.isAnonymous
-            )
+
+    suspend fun getCurrentUser(): User? = auth.currentUser?.let {
+        val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+        val dbUsers: CollectionReference = db.collection("Users")
+        val result = dbUsers.document(it.uid).get().await()
+        result.data?.let {
+            return result.toObject(User::class.java)
         }
     }
 
-    override suspend fun authenticate(email: String, password: String) {
+
+    override suspend fun authenticate(email: String, password: String, callBack: (AuthResult) -> Unit) {
         scope.async {
-            auth.signInWithEmailAndPassword(email, password)
+            val result = auth.signInWithEmailAndPassword(email, password)
+            callBack.invoke(result)
         }.await()
     }
 
-    override suspend fun createUser(email: String, password: String) {
+    override suspend fun createUser(email: String, password: String, callBack: (AuthResult) -> Unit) {
         scope.async {
-            auth.createUserWithEmailAndPassword(email, password)
+            val result = auth.createUserWithEmailAndPassword(email, password)
+            callBack.invoke(result)
         }.await()
     }
 
@@ -47,6 +52,7 @@ class AuthenticationService(
                 auth.currentUser?.delete()
             }
             auth.signOut()
+            Log.v("Ehsan1", "curretnUser on FB: ${auth.currentUser}")
         }.await()
     }
 }
