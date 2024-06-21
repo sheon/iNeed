@@ -16,12 +16,8 @@ class ToolsRepository {
                     for (d in list) {
                         val c: Tool = d.data<Tool>()
                       toolList.add(c.copy(id = d.id)) // This ID will be used only in the app after the tool is fetched and there is not need to store it on FireStore.
-                        println("Ehsan: ID: ${d.id}")
-                        println("Ehsan: Reference: ${d.reference}")
-
                     }
                     retrievedData.invoke(toolList)
-                    println("Ehsan: $toolList")
                 } else {
                     println("Ehsan: No data found in Database")
                 }

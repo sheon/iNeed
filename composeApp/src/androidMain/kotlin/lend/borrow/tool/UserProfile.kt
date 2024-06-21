@@ -86,7 +86,6 @@ fun UserProfile(
         ) {
             Text(text = "${user.name} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
             Switch(checked = userAvailability, onCheckedChange = {
-                Log.v("Ehsan2", "availableAtTheMoment: ${user.availableAtTheMoment}  changed to $it")
                 user.availableAtTheMoment = it
                 userViewModel.updateUserInfo(user)
                 userAvailability = it
@@ -191,7 +190,7 @@ suspend fun uploadTool(
             uploadTask.await()
         }
     }
-
+    tool.images.clear()
     tool.images.addAll(uploadedImagesNameWithSuffix)
     dbTools.add(tool).addOnSuccessListener {
         // after the data addition is successful

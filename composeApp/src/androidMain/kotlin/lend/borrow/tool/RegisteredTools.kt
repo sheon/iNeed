@@ -111,7 +111,6 @@ fun RegisteredToolsScreen(user: User?) {
                                     }
                                 } else
                                     context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
-                                        Log.v("Ehsan", "Tools are: $it")
                                         val tempList = mutableListOf<Tool>()
                                         it.forEach { requiredTool ->
                                             tempList.addAll(_data.filter { availableTool ->
@@ -159,7 +158,6 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
     val apiKey = getString(lend.borrow.tool.R.string.api_key)
     val url = "https://api.openai.com/v1/chat/completions"
     val client = OkHttpClient()
-    Log.v("Ehsan", "question: $question")
     val requestBody =
         """{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"$question"}]}"""
 
@@ -177,15 +175,12 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 
         override fun onResponse(call: Call, response: Response) {
             val body = response.body?.string()
-            Log.v("Ehsan", "response: ${body}")
             val jsonObject = JSONObject(body)
             val jsonArray: JSONArray = jsonObject.getJSONArray("choices")
-            Log.v("Ehsan", "choices: ${jsonArray}")
             val textResult =
                 jsonArray.getJSONObject(0).getJSONObject("message").getString("content")
                     .replace("\\", "")
             val list: List<String> = Json.decodeFromString(textResult)
-            Log.v("Ehsan", "result: ${list}")
             callBack(list)
         }
 
@@ -236,8 +231,6 @@ fun ListItem(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     items(tool_tmp.images) {
-                        Log.v("Ehsan3", "tool id: ${tool_tmp.id}")
-                        Log.v("Ehsan3", "image: $it")
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()

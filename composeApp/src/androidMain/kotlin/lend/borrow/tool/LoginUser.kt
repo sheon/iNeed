@@ -8,12 +8,10 @@ suspend fun createUserWithEmailAndPassword(email: String, password: String) {
     val auth: FirebaseAuth = Firebase.auth
     val  result = auth.createUserWithEmailAndPassword(email, password)
     val user = result.user
-    println("Ehsan: successfully logged in $user")
 }
 
 suspend fun authenticateUserWithEmailAndPassword(email: String, password: String) {
     val auth: FirebaseAuth = Firebase.auth
     val  result = auth.createUserWithEmailAndPassword(email, password)
     val user = result.user
-    println("Ehsan: successfully logged in $user")
 }
