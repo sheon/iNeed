@@ -8,8 +8,9 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 
 class MainActivity : ComponentActivity() {
+    val authService = AuthenticationService(auth = Firebase.auth)
     val loginViewModel by lazy {
-        LoginViewModel(this.application, AuthenticationService(auth = Firebase.auth))
+        LoginViewModel(this.application, authService)
     }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

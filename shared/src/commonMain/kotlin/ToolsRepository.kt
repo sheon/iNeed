@@ -1,32 +1,30 @@
-import com.google.firebase.firestore.CollectionReference
-import com.google.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.firestore.CollectionReference
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.firestore.firestore
 
-class ToolsRepository(user: User) {
-    val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+class ToolsRepository {
+    val db: FirebaseFirestore = Firebase.firestore
     val dbTools: CollectionReference = db.collection("Tools")
 
 
-    suspend fun getAvailableTools(retrieveData: (List<Tool>) -> Unit) {
+    suspend fun getAvailableTools(retrievedData: (List<Tool>) -> Unit) {
         val toolList = mutableListOf<Tool>()
-        dbTools.get()
-            .addOnSuccessListener { queryDocumentSnapshots ->
-                if (!queryDocumentSnapshots.isEmpty) {
+        dbTools.get().let{ queryDocumentSnapshots ->
+                if (queryDocumentSnapshots.documents.isNotEmpty()) {
                     val list = queryDocumentSnapshots.documents
                     for (d in list) {
-                        val c: Tool? = d.toObject(Tool::class.java)
-                        c?.let { toolList.add(it.copy(id = d.id)) } // This ID will be used only in the app after the tool is fetched and there is not need to store it on FireStore.
+                        val c: Tool = d.data<Tool>()
+                      toolList.add(c.copy(id = d.id)) // This ID will be used only in the app after the tool is fetched and there is not need to store it on FireStore.
                         println("Ehsan: ID: ${d.id}")
                         println("Ehsan: Reference: ${d.reference}")
 
                     }
-                    retrieveData.invoke(toolList)
+                    retrievedData.invoke(toolList)
                     println("Ehsan: $toolList")
                 } else {
                     println("Ehsan: No data found in Database")
                 }
-            }
-            .addOnFailureListener {
-                println("Ehsan: Fail to get the data.")
             }
     }
 }

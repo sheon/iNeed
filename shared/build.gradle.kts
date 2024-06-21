@@ -27,9 +27,26 @@ kotlin {
     }
     
     sourceSets {
-        commonMain.dependencies {
-            implementation(libs.kotlinx.serialization.json)
-            // put your Multiplatform dependencies here
+        val commonMain by getting {
+            dependencies {
+                implementation(libs.kotlinx.serialization.json)
+                implementation(project.dependencies.platform(libs.firebase.bom))
+                implementation (libs.firebase.firestore)
+                implementation(libs.firebase.common)
+                implementation(libs.firebase.auth)
+                implementation(libs.kotlinx.coroutines.core)
+                // put your Multiplatform dependencies here
+            }
+        }
+        val iosX64Main by getting
+        val iosArm64Main by getting
+        val iosSimulatorArm64Main by getting
+
+        val iosMain by creating {
+            dependsOn(commonMain)
+            iosX64Main.dependsOn(this)
+            iosArm64Main.dependsOn(this)
+            iosSimulatorArm64Main.dependsOn(this)
         }
     }
 }
@@ -47,10 +64,4 @@ android {
 }
 dependencies {
     implementation(libs.androidx.foundation.android)
-    implementation("dev.gitlive:firebase-firestore:1.8.1")
-    implementation("dev.gitlive:firebase-common:1.8.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.5.1")
-    implementation(libs.androidx.runtime.android)
-    implementation(libs.firebase.auth)
-    implementation(libs.kotlinx.coroutines.core)
 }

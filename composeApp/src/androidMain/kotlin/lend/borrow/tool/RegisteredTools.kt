@@ -16,11 +16,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -33,7 +35,6 @@ import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,6 +68,7 @@ import java.io.IOException
 fun RegisteredToolsScreen(user: User?) {
     val context = LocalContext.current
     val toolsViewModel = ToolsViewModel((context as Activity).application)
+    val userViewModel = UserViewModel((context as Activity).application)
 
     var _data = mutableListOf<Tool>()
     var data: List<Tool> by remember {
@@ -147,7 +149,7 @@ fun RegisteredToolsScreen(user: User?) {
                 .background(Color.LightGray)
         ) {
             items(data) {
-                ListItem(it, user, toolsViewModel)
+                ListItem(it, user, toolsViewModel, userViewModel)
             }
         }
     }
@@ -193,7 +195,12 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ListItem(tool: Tool, user: User?, toolsViewModel: ToolsViewModel) {
+fun ListItem(
+    tool: Tool,
+    user: User?,
+    toolsViewModel: ToolsViewModel,
+    userViewModel: UserViewModel
+) {
     var tool_tmp: Tool by remember {
         mutableStateOf(tool)
     }
@@ -201,17 +208,19 @@ fun ListItem(tool: Tool, user: User?, toolsViewModel: ToolsViewModel) {
         mutableStateListOf<String>()
     }
     favorites.addAll(user?.favoriteTools ?: emptyList())
-    val toolAvailability: Float by remember {
-        mutableFloatStateOf(if (tool.available) 1f else 0.5f)
-    }
+
+    val toolOwner = userViewModel.getUserInfo(tool.owner)
+    val toolAvailability: Boolean =
+        toolOwner == null || toolOwner.availableAtTheMoment && tool.available
+    val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     Card(
         Modifier
             .fillMaxWidth()
             .padding(
                 15.dp
             )
-            .alpha(toolAvailability)
-            .clickable(tool.available, onClick = {}),
+            .alpha(toolAlpha)
+            .clickable(toolAvailability, onClick = {}),
         elevation = if (tool.available) 5.dp else 0.dp
     ) {
         Column(
@@ -227,6 +236,8 @@ fun ListItem(tool: Tool, user: User?, toolsViewModel: ToolsViewModel) {
                     horizontalArrangement = Arrangement.Center
                 ) {
                     items(tool_tmp.images) {
+                        Log.v("Ehsan3", "tool id: ${tool_tmp.id}")
+                        Log.v("Ehsan3", "image: $it")
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -251,43 +262,47 @@ fun ListItem(tool: Tool, user: User?, toolsViewModel: ToolsViewModel) {
             Text(text = "Description: ", fontWeight = FontWeight.Bold)
             Text(text = tool.description, modifier = Modifier.padding(5.dp))
             if (tool.tags?.isNotEmpty() == true)
-                FlowRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp)
-                        .padding(top = 5.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    tool.tags?.forEach { tag ->
-                        Box(
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .background(
-                                    color = Color.Black,
-                                    shape = RoundedCornerShape(5.dp)
-                                )
-                                .alpha(toolAvailability),
-                            Alignment.Center
-                        ) {
-                            Text(
-                                text = tag.trim(),
-                                Modifier.padding(horizontal = 5.dp),
-                                color = Color.White
+                Spacer(modifier = Modifier.height(11.dp))
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .padding(top = 5.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                tool.tags?.forEach { tag ->
+                    Box(
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .background(
+                                color = Color.Black,
+                                shape = RoundedCornerShape(5.dp)
                             )
-                        }
+                            .alpha(toolAlpha),
+                        Alignment.Center
+                    ) {
+                        Text(
+                            text = tag.trim(),
+                            Modifier.padding(horizontal = 5.dp),
+                            color = Color.White
+                        )
                     }
                 }
+            }
             user?.let {
+                Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Button(enabled = tool.available,
-                        modifier = Modifier.alpha(toolAvailability),
+                        modifier = Modifier.alpha(toolAlpha),
                         onClick = {
-                            tool.available = false
-                            tool_tmp = tool
+                            if (toolAvailability) {
+                                tool.available = false
+                                tool_tmp = tool
+                            }
                         }) {
                         Text("May I borrow this item?")
                     }
@@ -296,21 +311,20 @@ fun ListItem(tool: Tool, user: User?, toolsViewModel: ToolsViewModel) {
                         contentDescription = "",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .clickable {
+                            .clickable(toolAvailability) {
                                 if (favorites.contains(tool.id)) { // This should be revised and use the single source of the truth.
                                     user.favoriteTools.remove(tool.id)
-                                    toolsViewModel.updateUserFavoriteTools(user) {
-                                        favorites.remove(tool.id)
-                                    }
+                                    toolsViewModel.updateUserFavoriteTools(it)
+                                    favorites.remove(tool.id)
                                 } else {
                                     user.favoriteTools.add(tool.id)
-                                    toolsViewModel.updateUserFavoriteTools(user) {
-                                        favorites.add(tool.id)
-                                    }
+                                    toolsViewModel.updateUserFavoriteTools(it)
+                                    favorites.add(tool.id)
+
                                 }
                             }
                             .align(Alignment.CenterVertically)
-                            .alpha(toolAvailability),
+                            .alpha(toolAlpha),
                     )
 
                 }

@@ -3,9 +3,11 @@ package lend.borrow.tool
 import BorrowLendAppScreen
 import Tool
 import User
+import android.app.Activity
 import android.content.Context
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +31,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +59,14 @@ fun UserProfile(
     val openDialog = remember { mutableStateOf(false) }
     val db: FirebaseFirestore = FirebaseFirestore.getInstance()
     val dbTools: CollectionReference = db.collection("Tools")
+
+    val userViewModel by lazy {
+        UserViewModel((context as Activity).application)
+    }
+
+    var userAvailability: Boolean by remember {
+        mutableStateOf(user.availableAtTheMoment)
+    }
     if (state.loading)
         CircularProgressIndicator(modifier = Modifier.wrapContentSize())
     Column(
@@ -74,8 +85,11 @@ fun UserProfile(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = "${user.name} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
-            Switch(checked = user.availableAtTheMoment, onCheckedChange = {
+            Switch(checked = userAvailability, onCheckedChange = {
+                Log.v("Ehsan2", "availableAtTheMoment: ${user.availableAtTheMoment}  changed to $it")
                 user.availableAtTheMoment = it
+                userViewModel.updateUserInfo(user)
+                userAvailability = it
             })
         }
         Text(
@@ -85,6 +99,13 @@ fun UserProfile(
         )
         Text(
             text = user.subscription,
+            Modifier
+                .fillMaxWidth()
+                .padding(15.dp)
+        )
+
+        Text(
+            text = user.email,
             Modifier
                 .fillMaxWidth()
                 .padding(15.dp)
