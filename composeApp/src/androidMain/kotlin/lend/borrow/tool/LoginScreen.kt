@@ -14,14 +14,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.Button
-import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.OutlinedTextField
-import androidx.compose.material.Text
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.FixedScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -144,9 +147,11 @@ fun LoginScreenContent(
                         .fillMaxWidth()
                         .height(48.dp), onClick = {
                             if (isSigningUp) loginViewModel.onSignUpClick() else loginViewModel.onSignInClick()
-                    }
+                    },
+                    colors = ButtonDefaults.buttonColors(Color(LocalContext.current.getColor(lend.borrow.tool.shared.R.color.primary)), Color.Black),
+                    shape = RoundedCornerShape(5.dp)
                 ) {
-                    Text(if (isSigningUp) "SIGN UP" else "SIGN IN")
+                    Text(if (isSigningUp) "SIGN UP" else "SIGN IN", color = Color.White )
                 }
 
 

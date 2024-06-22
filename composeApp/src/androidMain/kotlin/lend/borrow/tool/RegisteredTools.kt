@@ -23,16 +23,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Button
-import androidx.compose.material.Card
-import androidx.compose.material.Text
-import androidx.compose.material.TextField
-import androidx.compose.material.TextFieldDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -49,6 +55,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
@@ -64,6 +71,7 @@ import org.json.JSONObject
 import java.io.IOException
 
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisteredToolsScreen(user: User?) {
     val context = LocalContext.current
@@ -91,43 +99,7 @@ fun RegisteredToolsScreen(user: User?) {
                 .padding(horizontal = 10.dp)
                 .padding(horizontal = 10.dp)
         )
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 10.dp)
-                .border(2.dp, Color.Gray, shape = RoundedCornerShape(300.dp))
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-        ) {
-            Row {
-                Image(
-                    painterResource(R.drawable.magnify),
-                    contentDescription = "",
-                    modifier = Modifier
-                        .clickable {
-                            if (iNeedInput.isNotBlank()) {
-                                if (iNeedInput.split(" ").size == 1) {
-                                    data = _data.filter {
-                                        it.name.equals(iNeedInput, true)
-                                    }
-                                } else
-                                    context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
-                                        val tempList = mutableListOf<Tool>()
-                                        it.forEach { requiredTool ->
-                                            tempList.addAll(_data.filter { availableTool ->
-                                                availableTool.name
-                                                    .replace(" ", "")
-                                                    .equals(requiredTool.replace(" ", ""), true)
-                                            })
-                                        }
-                                        data = tempList
-                                    }
-
-                            } else
-                                data = _data
-                        }
-                        .align(Alignment.CenterVertically)
-                )
-                TextField(
+                OutlinedTextField(
                     value = iNeedInput,
                     onValueChange = {
                         iNeedInput = it
@@ -135,12 +107,39 @@ fun RegisteredToolsScreen(user: User?) {
                             data = _data
                     },
                     modifier = Modifier
-                        .fillMaxWidth(),
-                    colors = TextFieldDefaults.textFieldColors(backgroundColor = Color.Transparent)
-                )
-            }
+                        .padding(horizontal = 10.dp)
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    shape = RoundedCornerShape(300.dp),
+                    leadingIcon = {
+                        IconButton(
+                            onClick = {
+                                if (iNeedInput.isNotBlank()) {
+                                    if (iNeedInput.split(" ").size == 1) {
+                                        data = _data.filter {
+                                            it.name.equals(iNeedInput, true)
+                                        }
+                                    } else
+                                        context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
+                                            val tempList = mutableListOf<Tool>()
+                                            it.forEach { requiredTool ->
+                                                tempList.addAll(_data.filter { availableTool ->
+                                                    availableTool.name
+                                                        .replace(" ", "")
+                                                        .equals(requiredTool.replace(" ", ""), true)
+                                                })
+                                            }
+                                            data = tempList
+                                        }
 
-        }
+                                } else
+                                    data = _data
+                            }
+                        ) {
+                            Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
+                        }
+                    }
+                )
         LazyColumn(
             Modifier
                 .fillMaxWidth()
@@ -209,14 +208,15 @@ fun ListItem(
         toolOwner == null || toolOwner.availableAtTheMoment && tool.available
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     Card(
-        Modifier
+        onClick = {},
+        modifier = Modifier
             .fillMaxWidth()
             .padding(
                 15.dp
-            )
-            .alpha(toolAlpha)
-            .clickable(toolAvailability, onClick = {}),
-        elevation = if (tool.available) 5.dp else 0.dp
+            ),
+        colors = CardDefaults.cardColors(Color.White),
+        enabled = toolAvailability,
+        elevation = CardDefaults.cardElevation(if (tool.available) 5.dp else 0.dp)
     ) {
         Column(
             Modifier
@@ -239,7 +239,9 @@ fun ListItem(
                         ) {
                             AsyncImage(
                                 model = it,
-                                modifier = Modifier.border(1.dp, Color.LightGray),
+                                modifier = Modifier
+                                    .alpha(toolAlpha)
+                                    .border(1.dp, Color.LightGray),
                                 contentDescription = "",
                                 contentScale = ContentScale.Fit
                             )
@@ -267,17 +269,19 @@ fun ListItem(
                 tool.tags?.forEach { tag ->
                     Box(
                         modifier = Modifier
-                            .wrapContentWidth()
+                            .wrapContentSize()
                             .background(
                                 color = Color.Black,
                                 shape = RoundedCornerShape(5.dp)
                             )
-                            .alpha(toolAlpha),
+                            .alpha(toolAlpha)
+                            .padding(7.dp),
                         Alignment.Center
                     ) {
                         Text(
                             text = tag.trim(),
-                            Modifier.padding(horizontal = 5.dp),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(horizontal = 5.dp),
                             color = Color.White
                         )
                     }
@@ -296,7 +300,9 @@ fun ListItem(
                                 tool.available = false
                                 tool_tmp = tool
                             }
-                        }) {
+                        },
+                        colors = ButtonDefaults.buttonColors(Color(LocalContext.current.getColor(lend.borrow.tool.shared.R.color.primary)), Color.White),
+                        shape = RoundedCornerShape(5.dp)) {
                         Text("May I borrow this item?")
                     }
                     Image(
@@ -304,7 +310,7 @@ fun ListItem(
                         contentDescription = "",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .clickable(toolAvailability) {
+                            .clickable {
                                 if (favorites.contains(tool.id)) { // This should be revised and use the single source of the truth.
                                     user.favoriteTools.remove(tool.id)
                                     toolsViewModel.updateUserFavoriteTools(it)
@@ -317,7 +323,6 @@ fun ListItem(
                                 }
                             }
                             .align(Alignment.CenterVertically)
-                            .alpha(toolAlpha),
                     )
 
                 }
