@@ -7,23 +7,28 @@ import android.app.Activity
 import android.content.Context
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
+import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
@@ -36,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.Firebase
@@ -52,13 +58,26 @@ fun UserProfile(
     user: User,
     viewModel: GlobalLoadingViewModel = GlobalLoadingViewModel(),
     loginViewModel: LoginViewModel,
-    navController: NavController
+    navController: NavController,
+    isEditingUserProfile: Boolean = false
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val openDialog = remember { mutableStateOf(false) }
     val db: FirebaseFirestore = FirebaseFirestore.getInstance()
     val dbTools: CollectionReference = db.collection("Tools")
+
+    var isEditingUserProfile by remember {
+        mutableStateOf(isEditingUserProfile)
+    }
+
+    var userName by remember {
+        mutableStateOf(user.name)
+    }
+
+    var userAddress by remember {
+        mutableStateOf(user.address)
+    }
 
     val userViewModel by lazy {
         UserViewModel((context as Activity).application)
@@ -73,47 +92,135 @@ fun UserProfile(
         Modifier
             .fillMaxWidth()
             .fillMaxHeight()
-            .padding(15.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(15.dp)
     ) {
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = if (isEditingUserProfile.not()) Arrangement.SpaceBetween else Arrangement.End ) {
+                if (isEditingUserProfile.not()) {
+                    Switch(checked = userAvailability, onCheckedChange = {
+                        user.availableAtTheMoment = it
+                        userViewModel.updateUserInfo(user)
+                        userAvailability = it
+                    })
+                    IconButton(onClick = {
+                        isEditingUserProfile = !isEditingUserProfile
+                    }) {
+                        Column {
+                            Icon(Icons.Filled.Edit, "Edit user profile data.")
+                            Text(text = "Edit")
+                        }
+
+                    }
+                } else {
+                    IconButton(onClick = {
+                        // Save the changes
+                        isEditingUserProfile = !isEditingUserProfile
+                    }) {
+                        Column {
+                            Icon(Icons.Filled.Done, "Save user profile data.")
+                            Text(text = "Save")
+                        }
+
+                    }
+                }
+            }
+
+
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Text(text = "Name",
+            Modifier.fillMaxWidth(),
+            fontWeight = FontWeight.ExtraBold)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isEditingUserProfile)
+                OutlinedTextField(
+                    value = userName,
+                    label = {
+                        Text("User name")
+                    },
+                    onValueChange = {
+                        user.name = it
+                        userViewModel.updateUserInfo(user)
+                        userName = it //This update should be handled by updating the user in the repository
+                    }
+                )
+            else {
+                Text(text = "${user.name.ifEmpty { "Unknown user" }} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
+            }
+        }
+
+        Text(text = "Address",
+            Modifier.fillMaxWidth(),
+            fontWeight = FontWeight.ExtraBold)
 
         Row(
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 15.dp),
+                .padding(10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "${user.name} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
-            Switch(checked = userAvailability, onCheckedChange = {
-                user.availableAtTheMoment = it
-                userViewModel.updateUserInfo(user)
-                userAvailability = it
-            })
-        }
-        Text(
-            text = user.address, Modifier
-                .fillMaxWidth()
-                .padding(15.dp)
-        )
-        Text(
-            text = user.subscription,
-            Modifier
-                .fillMaxWidth()
-                .padding(15.dp)
-        )
 
+            if (isEditingUserProfile)
+                OutlinedTextField(
+                    value = userAddress,
+                    label = {
+                        Text("User address")
+                    },
+                    onValueChange = {
+                        user.address = it
+                        userViewModel.updateUserInfo(user)
+                        userAddress = it //This update should be handled by updating the user in the repository
+                    }
+                )
+            else {
+                Text(
+                    text = user.address.ifEmpty { "Unknown" }, Modifier
+                        .fillMaxWidth()
+                )
+            }
+        }
+
+        Text(text = "Email",
+            Modifier.fillMaxWidth(),
+            fontWeight = FontWeight.ExtraBold)
         Text(
             text = user.email,
             Modifier
                 .fillMaxWidth()
-                .padding(15.dp)
+                .padding(10.dp)
         )
 
-        ClickableText(text = AnnotatedString("Sign out")) {
-            loginViewModel.onSignOut()
-            navController.navigate(BorrowLendAppScreen.LOGIN.name)
-        }
+        Text(text = "Subscription",
+            Modifier.fillMaxWidth(),
+            fontWeight = FontWeight.ExtraBold)
+
+        Text(
+            text = user.subscription,
+            Modifier
+                .fillMaxWidth()
+                .padding(10.dp)
+        )
+
+        Spacer(modifier = Modifier.height(64.dp))
+
+        if (isEditingUserProfile.not())
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                ClickableText(text = AnnotatedString("Sign out")) {
+                    loginViewModel.onSignOut()
+                    navController.navigate(BorrowLendAppScreen.LOGIN.name)
+                }
+            }
+
+
+
         Row (Modifier.fillMaxSize(),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.Bottom) {

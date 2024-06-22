@@ -16,8 +16,8 @@ enum class UserSchedule{
 @Serializable
 data class User(
     val id: String = "",
-    val name: String = "",
-    val address: String = "",
+    var name: String = "",
+    var address: String = "",
     val email: String = "",
     var availableAtTheMoment: Boolean = true,
     var subscription: String = "free",

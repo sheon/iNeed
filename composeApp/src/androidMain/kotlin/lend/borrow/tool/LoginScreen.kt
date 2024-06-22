@@ -43,10 +43,7 @@ import org.jetbrains.compose.resources.ExperimentalResourceApi
 fun LoginScreen(modifier: Modifier = Modifier, loginViewModel: LoginViewModel, navController: NavController) {
 
     val uiState by loginViewModel.uiState.collectAsState()
-    val emailError by loginViewModel.emailError.collectAsState()
-    val passwordError by loginViewModel.passwordError.collectAsState()
     val isProcessing by loginViewModel.isProcessing.collectAsState()
-    val isButtonEnabled by loginViewModel.isProcessing.collectAsState()
     val loginError by loginViewModel.loginErrorMessage.collectAsState()
 
 

@@ -106,7 +106,7 @@ fun BorrowLendAppBar(
     navController: NavController,
     user: State<User?>
 ) {
-    TopAppBar(backgroundColor = Color.Green) {
+    TopAppBar(backgroundColor = Color.Yellow) {
         Box(Modifier.fillMaxSize()) {
             Row(Modifier.wrapContentSize(), verticalAlignment = Alignment.CenterVertically) {
                 when {
