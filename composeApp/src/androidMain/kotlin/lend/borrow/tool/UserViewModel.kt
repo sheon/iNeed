@@ -4,7 +4,6 @@ import ToolsRepository
 import User
 import UserRepository
 import android.app.Application
-import kotlinx.coroutines.runBlocking
 
 class UserViewModel(private val application: Application): BaseViewModel(application) {
     val toolsRepo by lazy {
@@ -21,9 +20,9 @@ class UserViewModel(private val application: Application): BaseViewModel(applica
         }
     }
 
-    fun getUserInfo(userId: String): User? {
-        return runBlocking {
-            userRepo.getUserInfo(userId)
+    fun getUserInfo(userId: String, callback: (user: User?) -> Unit){
+        launchWithCatchingException {
+            callback(userRepo.getUserInfo(userId))
         }
     }
 }

@@ -1,11 +1,10 @@
 package lend.borrow.tool
 
-import Tool
+import ToolInApp
 import ToolsRepository
 import User
 import UserRepository
 import android.app.Application
-import kotlinx.coroutines.runBlocking
 
 class ToolsViewModel(private val application: Application) : BaseViewModel(application) {
 
@@ -17,8 +16,10 @@ class ToolsViewModel(private val application: Application) : BaseViewModel(appli
         UserRepository()
     }
 
-    fun getToolsFromRemote(callback: (List<Tool>) -> Unit) = runBlocking {
-        toolsRepo.getAvailableTools(callback)
+    fun getToolsFromRemote(callback: (List<ToolInApp>) -> Unit)  {
+        launchWithCatchingException {
+            toolsRepo.getAvailableTools(callback, userRepo)
+        }
     }
 
     fun updateUserFavoriteTools(user: User) {

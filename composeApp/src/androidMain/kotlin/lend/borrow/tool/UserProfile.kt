@@ -1,7 +1,7 @@
 package lend.borrow.tool
 
 import BorrowLendAppScreen
-import Tool
+import ToolInFireStore
 import User
 import android.app.Activity
 import android.content.Context
@@ -39,10 +39,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat.getColor
 import androidx.navigation.NavController
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.CollectionReference
@@ -229,14 +231,15 @@ fun UserProfile(
                     openDialog.value = true
                 },
                 Modifier
-                    .wrapContentSize()
+                    .wrapContentSize(),
+                containerColor = Color(getColor(LocalContext.current, lend.borrow.tool.shared.R.color.primary))
             ) {
                 Row(
                     Modifier.padding(10.dp),
                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
-                    Text(text = "Add tool")
-                    Icon(Icons.Filled.Add, "Small floating action button.")
+                    Text(text = "Add tool", color = Color.White)
+                    Icon(Icons.Filled.Add, "Small floating action button.", tint = Color.White)
                 }
             }
         }
@@ -252,7 +255,7 @@ fun UserProfile(
         }, { toolName, toolDescription, tags, images ->
             viewModel.loadingInProgress()
             openDialog.value = false
-            val tempTool = Tool(toolName, "", toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), owner = user.id)
+            val tempTool = ToolInFireStore(toolName, "", toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), owner = user.id)
             GlobalScope.launch {// The scope should be fixed later
                 uploadTool(tempTool, dbTools, context, viewModel)
             }
@@ -263,7 +266,7 @@ fun UserProfile(
 
 @RequiresApi(Build.VERSION_CODES.TIRAMISU)
 suspend fun uploadTool(
-    tool: Tool,
+    tool: ToolInFireStore,
     dbTools: CollectionReference,
     context: Context,
     viewModel: GlobalLoadingViewModel

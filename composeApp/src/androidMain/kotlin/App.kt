@@ -22,8 +22,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.core.content.ContextCompat.getColor
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -106,7 +108,10 @@ fun BorrowLendAppBar(
     navController: NavController,
     user: State<User?>
 ) {
-    TopAppBar(backgroundColor = Color.Yellow) {
+    TopAppBar(
+        backgroundColor = Color(getColor(LocalContext.current, lend.borrow.tool.shared.R.color.primary)),
+        contentColor = Color.White
+    ) {
         Box(Modifier.fillMaxSize()) {
             Row(Modifier.wrapContentSize(), verticalAlignment = Alignment.CenterVertically) {
                 when {

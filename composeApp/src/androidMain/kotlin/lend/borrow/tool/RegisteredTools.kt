@@ -1,6 +1,6 @@
 package lend.borrow.tool
 
-import Tool
+import ToolInApp
 import User
 import android.app.Activity
 import android.content.Context
@@ -28,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Button
@@ -56,6 +57,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat.getColor
 import coil.compose.AsyncImage
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
@@ -78,20 +80,27 @@ fun RegisteredToolsScreen(user: User?) {
     val toolsViewModel = ToolsViewModel((context as Activity).application)
     val userViewModel = UserViewModel((context as Activity).application)
 
-    var _data = mutableListOf<Tool>()
-    var data: List<Tool> by remember {
+    var _data = mutableListOf<ToolInApp>()
+    var data: List<ToolInApp> by remember {
         mutableStateOf(mutableListOf())
     }
+
+    var fetchingToolsInProgress by remember {
+        mutableStateOf(true)
+    }
     toolsViewModel.getToolsFromRemote() {
-        _data.addAll(it.filter { it.owner != user?.id })
+        _data.addAll(it.filter { tool ->
+            tool.owner == null || tool.owner?.id != user?.id })
         data = _data
+        fetchingToolsInProgress = false
     }
     var iNeedInput by rememberSaveable { mutableStateOf("") }
+
     Column(
         Modifier
             .fillMaxSize()
             .padding(top = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
             text = "I need",
@@ -99,57 +108,72 @@ fun RegisteredToolsScreen(user: User?) {
                 .padding(horizontal = 10.dp)
                 .padding(horizontal = 10.dp)
         )
-                OutlinedTextField(
-                    value = iNeedInput,
-                    onValueChange = {
-                        iNeedInput = it
-                        if (it.isBlank())
-                            data = _data
-                    },
-                    modifier = Modifier
-                        .padding(horizontal = 10.dp)
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    shape = RoundedCornerShape(300.dp),
-                    leadingIcon = {
-                        IconButton(
-                            onClick = {
-                                if (iNeedInput.isNotBlank()) {
-                                    if (iNeedInput.split(" ").size == 1) {
-                                        data = _data.filter {
-                                            it.name.equals(iNeedInput, true)
-                                        }
-                                    } else
-                                        context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
-                                            val tempList = mutableListOf<Tool>()
-                                            it.forEach { requiredTool ->
-                                                tempList.addAll(_data.filter { availableTool ->
-                                                    availableTool.name
-                                                        .replace(" ", "")
-                                                        .equals(requiredTool.replace(" ", ""), true)
-                                                })
-                                            }
-                                            data = tempList
-                                        }
-
-                                } else
-                                    data = _data
-                            }
-                        ) {
-                            Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
-                        }
-                    }
-                )
-        LazyColumn(
-            Modifier
+        OutlinedTextField(
+            value = iNeedInput,
+            onValueChange = {
+                iNeedInput = it
+                if (it.isBlank())
+                    data = _data
+            },
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
                 .fillMaxWidth()
-                .fillMaxHeight()
-                .background(Color.LightGray)
-        ) {
-            items(data) {
-                ListItem(it, user, toolsViewModel, userViewModel)
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(300.dp),
+            leadingIcon = {
+                IconButton(
+                    onClick = {
+                        if (iNeedInput.isNotBlank()) {
+                            if (iNeedInput.split(" ").size == 1) {
+                                data = _data.filter {
+                                    it.name.equals(iNeedInput, true)
+                                }
+                            } else
+                                context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
+                                    val tempList = mutableListOf<ToolInApp>()
+                                    it.forEach { requiredTool ->
+                                        tempList.addAll(_data.filter { availableTool ->
+                                            availableTool.name
+                                                .replace(" ", "")
+                                                .equals(requiredTool.replace(" ", ""), true)
+                                        })
+                                    }
+                                    data = tempList
+                                }
+
+                        } else
+                            data = _data
+                    }
+                ) {
+                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
+                }
             }
-        }
+        )
+        Log.v("Ehsan", "Registered tools ${LocalContext.current} $this")
+        if (fetchingToolsInProgress)
+            Box(modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .wrapContentSize(),
+                    color = Color(getColor(LocalContext.current, R.color.primary))
+                )
+            }
+        else
+            LazyColumn(
+                Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .background(Color.LightGray)
+            ) {
+                items(data,
+                    key = {
+                        it.id
+                    }) {
+                    Log.v("Ehsan", "ListItem ${this@LazyColumn} 1: ${System.currentTimeMillis()}")
+                    ListItem(it, user, toolsViewModel, userViewModel)
+                }
+            }
     }
 }
 
@@ -190,12 +214,13 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ListItem(
-    tool: Tool,
+    tool: ToolInApp,
     user: User?,
     toolsViewModel: ToolsViewModel,
     userViewModel: UserViewModel
 ) {
-    var tool_tmp: Tool by remember {
+    Log.v("Ehsan", "ListItem 2 tool name: ${tool.name} ${System.currentTimeMillis()}")
+    var tool_tmp: ToolInApp by remember {
         mutableStateOf(tool)
     }
     var favorites = remember {
@@ -203,7 +228,11 @@ fun ListItem(
     }
     favorites.addAll(user?.favoriteTools ?: emptyList())
 
-    val toolOwner = userViewModel.getUserInfo(tool.owner)
+    val toolOwner = tool.owner
+//    userViewModel.getUserInfo(tool.owner?.id) {
+//        Log.v("Ehsan", "getUserInfo user: $it")
+//        toolOwner = it
+//    }
     val toolAvailability: Boolean =
         toolOwner == null || toolOwner.availableAtTheMoment && tool.available
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
@@ -231,12 +260,14 @@ fun ListItem(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     items(tool_tmp.images) {
+                        Log.v("Ehsan", "ListItem LazyRow images 3 ${System.currentTimeMillis()}")
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .padding(5.dp),
                             contentAlignment = Alignment.Center
                         ) {
+                            Log.v("Ehsan", "ListItem LazyRow Box 4 ${System.currentTimeMillis()}")
                             AsyncImage(
                                 model = it,
                                 modifier = Modifier
@@ -250,6 +281,7 @@ fun ListItem(
 
                 }
             }
+            Log.v("Ehsan", "ListItem LazyRow BEFORE BEFORE 5 ${System.currentTimeMillis()}")
             Text(text = "Tool id: ", fontWeight = FontWeight.Bold)
             Text(text = tool.id, modifier = Modifier.padding(5.dp))
             Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
@@ -258,6 +290,7 @@ fun ListItem(
             Text(text = tool.description, modifier = Modifier.padding(5.dp))
             if (tool.tags?.isNotEmpty() == true)
                 Spacer(modifier = Modifier.height(11.dp))
+            Log.v("Ehsan", "ListItem LazyRow BEFORE 5 ${System.currentTimeMillis()}")
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -267,6 +300,7 @@ fun ListItem(
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 tool.tags?.forEach { tag ->
+                    Log.v("Ehsan", "ListItem LazyRow Tags 5 ${System.currentTimeMillis()}")
                     Box(
                         modifier = Modifier
                             .wrapContentSize()
@@ -288,12 +322,14 @@ fun ListItem(
                 }
             }
             user?.let {
+                Log.v("Ehsan", "ListItem user: ${user.name} 6 ${System.currentTimeMillis()}")
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Button(enabled = tool.available,
+                    Button(
+                        enabled = tool.available,
                         modifier = Modifier.alpha(toolAlpha),
                         onClick = {
                             if (toolAvailability) {
@@ -301,8 +337,15 @@ fun ListItem(
                                 tool_tmp = tool
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(Color(LocalContext.current.getColor(lend.borrow.tool.shared.R.color.primary)), Color.White),
-                        shape = RoundedCornerShape(5.dp)) {
+                        colors = ButtonDefaults.buttonColors(
+                            Color(
+                                LocalContext.current.getColor(
+                                    lend.borrow.tool.shared.R.color.primary
+                                )
+                            ), Color.White
+                        ),
+                        shape = RoundedCornerShape(5.dp)
+                    ) {
                         Text("May I borrow this item?")
                     }
                     Image(

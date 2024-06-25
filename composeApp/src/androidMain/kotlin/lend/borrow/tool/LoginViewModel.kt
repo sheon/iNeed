@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
 class LoginViewModel(
-    private val application: Application,
+    application: Application,
     val authService: AuthenticationService
 ) : BaseViewModel(application) {
 
@@ -22,16 +22,6 @@ class LoginViewModel(
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState = _uiState.asStateFlow()
-
-    private val _emailError = MutableStateFlow(false)
-    val emailError = _emailError.asStateFlow()
-
-    private val _passwordError = MutableStateFlow(false)
-    val passwordError = _passwordError.asStateFlow()
-
-    private val _confirmPasswordError = MutableStateFlow(false)
-    val confirmPasswordError = _confirmPasswordError.asStateFlow()
-
 
     val currentUser = userRepo.currentUser
 
@@ -47,20 +37,14 @@ class LoginViewModel(
 
     fun onEmailChange(newValue: String) {
         _uiState.update { it.copy(email = newValue) }
-        //reset error
-        if (newValue.isNotBlank()) _emailError.value = false
     }
 
     fun onPasswordChange(newValue: String) {
         _uiState.update { it.copy(password = newValue) }
-        //reset error
-        if (newValue.isNotBlank()) _passwordError.value = false
     }
 
     fun onConfirmPasswordChange(newValue: String) {
         _uiState.update { it.copy(confirmPassword = newValue) }
-        //reset error
-        _confirmPasswordError.value = false
     }
 
     fun onSignInClick() {
