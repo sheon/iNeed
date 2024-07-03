@@ -4,10 +4,9 @@ import BorrowLendAppScreen
 import ToolInFireStore
 import User
 import android.app.Activity
-import android.content.Context
+import android.location.Geocoder
 import android.net.Uri
 import android.os.Build
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,13 +45,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getColor
 import androidx.navigation.NavController
-import com.google.firebase.Firebase
-import com.google.firebase.firestore.CollectionReference
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.storage
+import dev.gitlive.firebase.Firebase
+import dev.gitlive.firebase.firestore.CollectionReference
+import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.firestore.GeoPoint
+import dev.gitlive.firebase.firestore.firestore
+import dev.gitlive.firebase.storage.File
+import dev.gitlive.firebase.storage.storage
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 @Composable
@@ -66,7 +67,7 @@ fun UserProfile(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val openDialog = remember { mutableStateOf(false) }
-    val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+    val db: FirebaseFirestore = Firebase.firestore
     val dbTools: CollectionReference = db.collection("Tools")
 
     var isEditingUserProfile by remember {
@@ -81,7 +82,7 @@ fun UserProfile(
         mutableStateOf(user.address)
     }
 
-    val userViewModel by lazy {
+    val userViewModel = androidx.lifecycle.viewmodel.compose.viewModel {
         UserViewModel((context as Activity).application)
     }
 
@@ -101,7 +102,6 @@ fun UserProfile(
                 if (isEditingUserProfile.not()) {
                     Switch(checked = userAvailability, onCheckedChange = {
                         user.availableAtTheMoment = it
-                        userViewModel.updateUserInfo(user)
                         userAvailability = it
                     })
                     IconButton(onClick = {
@@ -115,7 +115,21 @@ fun UserProfile(
                     }
                 } else {
                     IconButton(onClick = {
-                        // Save the changes
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            Geocoder(context).getFromLocationName(user.address, 1) {
+                                val geoPoint = GeoPoint(it.first().latitude, it.first().longitude)
+                                user.geoPoint = geoPoint
+                                userViewModel.updateUserInfo(user)
+                            }
+                        } else {
+                           Geocoder(context).getFromLocationName(user.address, 1)?.let {
+                               val geoPoint =
+                                   GeoPoint(it.first().latitude, it.first().longitude)
+                               user.geoPoint = geoPoint
+                               userViewModel.updateUserInfo(user)
+                           }
+
+                        }
                         isEditingUserProfile = !isEditingUserProfile
                     }) {
                         Column {
@@ -149,7 +163,6 @@ fun UserProfile(
                     },
                     onValueChange = {
                         user.name = it
-                        userViewModel.updateUserInfo(user)
                         userName = it //This update should be handled by updating the user in the repository
                     }
                 )
@@ -178,7 +191,6 @@ fun UserProfile(
                     },
                     onValueChange = {
                         user.address = it
-                        userViewModel.updateUserInfo(user)
                         userAddress = it //This update should be handled by updating the user in the repository
                     }
                 )
@@ -257,7 +269,7 @@ fun UserProfile(
             openDialog.value = false
             val tempTool = ToolInFireStore(toolName, "", toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), owner = user.id)
             GlobalScope.launch {// The scope should be fixed later
-                uploadTool(tempTool, dbTools, context, viewModel)
+                uploadTool(tempTool, dbTools, viewModel)
             }
 
         })
@@ -268,52 +280,18 @@ fun UserProfile(
 suspend fun uploadTool(
     tool: ToolInFireStore,
     dbTools: CollectionReference,
-    context: Context,
     viewModel: GlobalLoadingViewModel
 ) {
     val storage = Firebase.storage
     val uploadedImagesNameWithSuffix = mutableListOf<String>()
     tool.images.forEach { imageUUID ->
-        context.contentResolver.openInputStream(Uri.parse(imageUUID))?.use {
-            val data = it.readAllBytes()
-            val imageNameWithSuffix = "${UUID.randomUUID()}.png"
-            val path = "tools/$imageNameWithSuffix"
-            val imageRef = storage.getReference(path)
-            val uploadTask = imageRef.putBytes(data)
-            uploadTask.continueWithTask {
-                if (!it.isSuccessful) {
-                    Toast.makeText(
-                        context,
-                        "Fail to upload the image \n$it",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                imageRef.downloadUrl
-            }.addOnSuccessListener { url ->
-                uploadedImagesNameWithSuffix.add(url.toString())
-                Toast.makeText(
-                    context,
-                    "Image uploaded successfully ${url}",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }.await()
-            uploadTask.await()
-        }
+        val imageNameWithSuffix = "${UUID.randomUUID()}.png"
+        val path = "tools/$imageNameWithSuffix"
+        val imageRef = storage.reference(path)
+        imageRef.putFile(File(Uri.parse(imageUUID)))
     }
     tool.images.clear()
     tool.images.addAll(uploadedImagesNameWithSuffix)
-    dbTools.add(tool).addOnSuccessListener {
-        // after the data addition is successful
-        // we are displaying a success toast message.
-        Toast.makeText(
-            context,
-            "Your tool has been added to Firebase Firestore",
-            Toast.LENGTH_SHORT
-        ).show()
-        viewModel.loadingFinished()
-    }.addOnFailureListener { e ->
-        Toast.makeText(context, "Fail to add course \n$e", Toast.LENGTH_SHORT)
-            .show()
-        viewModel.loadingFinished()
-    }
+    dbTools.add(tool)
+    viewModel.loadingFinished()
 }

@@ -1,17 +1,12 @@
 package lend.borrow.tool
 
-import ToolsRepository
 import User
-import UserRepository
 import android.app.Application
 
-class UserViewModel(private val application: Application): BaseViewModel(application) {
-    val toolsRepo by lazy {
-        ToolsRepository()
-    }
+class UserViewModel(private val application: Application): BaseViewModel() {
 
     val userRepo by lazy {
-        UserRepository()
+        UserRepository.getInstance(application)
     }
 
     fun updateUserInfo(user: User) {

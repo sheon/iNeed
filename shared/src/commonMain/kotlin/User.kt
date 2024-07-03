@@ -1,3 +1,5 @@
+
+import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.serialization.Serializable
 
 enum class UserSchedule{
@@ -24,5 +26,6 @@ data class User(
     val favoriteTools: MutableList<String> = mutableListOf<String>(),
     val ownTools: MutableList<String> = mutableListOf<String>(),
     val borrowedTools: MutableList<String> = mutableListOf<String>(),
-    val lentTools: MutableList<String> = mutableListOf<String>()
-) // The initial values are for the serializable in order to parse FirebaseUser to User directly.
+    val lentTools: MutableList<String> = mutableListOf<String>(),
+    var geoPoint: GeoPoint? = null
+)

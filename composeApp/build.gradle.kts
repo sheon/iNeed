@@ -27,10 +27,9 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.kotlinx.coroutines.android)
             implementation (libs.gson)
-            implementation (libs.firebase.firestore)
             implementation(project.dependencies.platform(libs.firebase.bom))
-            implementation(libs.firebase.storage)
             implementation("io.coil-kt:coil-compose:2.4.0")
+            implementation(libs.maps.ktx)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -43,12 +42,10 @@ kotlin {
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.ktor.client.core)
             implementation(libs.kotlinx.coroutines.core)
-            implementation (libs.firebase.firestore)
-            implementation(project.dependencies.platform(libs.firebase.bom))
-            implementation(libs.firebase.storage)
-            implementation(libs.firebase.common)
-            implementation(libs.firebase.auth)
             implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.firebase.auth)
+            implementation(libs.firebase.firestore)
+            implementation(libs.firebase.storage)
         }
     }
 }

@@ -31,11 +31,10 @@ kotlin {
             dependencies {
                 implementation(libs.kotlinx.serialization.json)
                 implementation(project.dependencies.platform(libs.firebase.bom))
-                implementation (libs.firebase.firestore)
-                implementation(libs.firebase.common)
+                implementation(libs.firebase.firestore)
                 implementation(libs.firebase.auth)
                 implementation(libs.kotlinx.coroutines.core)
-                // put your Multiplatform dependencies here
+                implementation(libs.play.services.maps)
             }
         }
         val iosX64Main by getting
@@ -64,4 +63,7 @@ android {
 }
 dependencies {
     implementation(libs.androidx.foundation.android)
+    implementation(libs.play.services.maps)
+    implementation (libs.firebase.firestore)
+    implementation(libs.firebase.firestore.ktx)
 }

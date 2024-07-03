@@ -1,19 +1,17 @@
 package lend.borrow.tool
 
 import ToolInApp
-import ToolsRepository
 import User
-import UserRepository
 import android.app.Application
 
-class ToolsViewModel(private val application: Application) : BaseViewModel(application) {
+class ToolsViewModel(private val application: Application) : BaseViewModel() {
 
     val toolsRepo by lazy {
-        ToolsRepository()
+        ToolsRepository.getInstance(application)
     }
 
     val userRepo by lazy {
-        UserRepository()
+        UserRepository.getInstance(application)
     }
 
     fun getToolsFromRemote(callback: (List<ToolInApp>) -> Unit)  {

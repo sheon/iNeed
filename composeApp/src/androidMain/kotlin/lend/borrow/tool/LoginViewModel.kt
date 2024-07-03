@@ -1,6 +1,5 @@
 package lend.borrow.tool
 
-import UserRepository
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,10 +13,10 @@ import kotlinx.coroutines.flow.update
 class LoginViewModel(
     application: Application,
     val authService: AuthenticationService
-) : BaseViewModel(application) {
+) : BaseViewModel() {
 
     val userRepo by lazy {
-        UserRepository(authService) // Should be fixed
+        UserRepository.getInstance(application)
     }
 
     private val _uiState = MutableStateFlow(LoginUiState())

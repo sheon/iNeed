@@ -35,7 +35,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -58,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.getColor
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
@@ -73,12 +73,19 @@ import org.json.JSONObject
 import java.io.IOException
 
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RegisteredToolsScreen(user: User?) {
+fun RegisteredToolsScreen(
+    user: User?
+) {
+    val application = (LocalContext.current as Activity).application
+    val toolsViewModel: ToolsViewModel = viewModel{
+        ToolsViewModel(application)
+    }
+    val userViewModel: UserViewModel = viewModel{
+        UserViewModel(application)
+    }
     val context = LocalContext.current
-    val toolsViewModel = ToolsViewModel((context as Activity).application)
-    val userViewModel = UserViewModel((context as Activity).application)
+
 
     var _data = mutableListOf<ToolInApp>()
     var data: List<ToolInApp> by remember {
@@ -88,12 +95,15 @@ fun RegisteredToolsScreen(user: User?) {
     var fetchingToolsInProgress by remember {
         mutableStateOf(true)
     }
-    toolsViewModel.getToolsFromRemote() {
-        _data.addAll(it.filter { tool ->
-            tool.owner == null || tool.owner?.id != user?.id })
-        data = _data
-        fetchingToolsInProgress = false
+
+    user?.let {
+        toolsViewModel.getToolsFromRemote {
+            _data.addAll(it)
+            data = _data
+            fetchingToolsInProgress = false
+        }
     }
+
     var iNeedInput by rememberSaveable { mutableStateOf("") }
 
     Column(
@@ -149,7 +159,6 @@ fun RegisteredToolsScreen(user: User?) {
                 }
             }
         )
-        Log.v("Ehsan", "Registered tools ${LocalContext.current} $this")
         if (fetchingToolsInProgress)
             Box(modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center) {
@@ -170,7 +179,6 @@ fun RegisteredToolsScreen(user: User?) {
                     key = {
                         it.id
                     }) {
-                    Log.v("Ehsan", "ListItem ${this@LazyColumn} 1: ${System.currentTimeMillis()}")
                     ListItem(it, user, toolsViewModel, userViewModel)
                 }
             }
@@ -219,7 +227,6 @@ fun ListItem(
     toolsViewModel: ToolsViewModel,
     userViewModel: UserViewModel
 ) {
-    Log.v("Ehsan", "ListItem 2 tool name: ${tool.name} ${System.currentTimeMillis()}")
     var tool_tmp: ToolInApp by remember {
         mutableStateOf(tool)
     }
@@ -229,10 +236,6 @@ fun ListItem(
     favorites.addAll(user?.favoriteTools ?: emptyList())
 
     val toolOwner = tool.owner
-//    userViewModel.getUserInfo(tool.owner?.id) {
-//        Log.v("Ehsan", "getUserInfo user: $it")
-//        toolOwner = it
-//    }
     val toolAvailability: Boolean =
         toolOwner == null || toolOwner.availableAtTheMoment && tool.available
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
@@ -260,14 +263,12 @@ fun ListItem(
                     horizontalArrangement = Arrangement.Center
                 ) {
                     items(tool_tmp.images) {
-                        Log.v("Ehsan", "ListItem LazyRow images 3 ${System.currentTimeMillis()}")
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .padding(5.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Log.v("Ehsan", "ListItem LazyRow Box 4 ${System.currentTimeMillis()}")
                             AsyncImage(
                                 model = it,
                                 modifier = Modifier
@@ -281,7 +282,6 @@ fun ListItem(
 
                 }
             }
-            Log.v("Ehsan", "ListItem LazyRow BEFORE BEFORE 5 ${System.currentTimeMillis()}")
             Text(text = "Tool id: ", fontWeight = FontWeight.Bold)
             Text(text = tool.id, modifier = Modifier.padding(5.dp))
             Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
@@ -290,7 +290,6 @@ fun ListItem(
             Text(text = tool.description, modifier = Modifier.padding(5.dp))
             if (tool.tags?.isNotEmpty() == true)
                 Spacer(modifier = Modifier.height(11.dp))
-            Log.v("Ehsan", "ListItem LazyRow BEFORE 5 ${System.currentTimeMillis()}")
             FlowRow(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -300,7 +299,6 @@ fun ListItem(
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 tool.tags?.forEach { tag ->
-                    Log.v("Ehsan", "ListItem LazyRow Tags 5 ${System.currentTimeMillis()}")
                     Box(
                         modifier = Modifier
                             .wrapContentSize()
@@ -322,7 +320,6 @@ fun ListItem(
                 }
             }
             user?.let {
-                Log.v("Ehsan", "ListItem user: ${user.name} 6 ${System.currentTimeMillis()}")
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
                     Modifier.fillMaxWidth(),

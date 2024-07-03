@@ -30,6 +30,3 @@ data class ToolInApp(
 }
 
 
-suspend fun ToolInFireStore.toToolInApp(userRepo: UserRepository): ToolInApp {
-    return ToolInApp(name, id, description, images, tags, available, userRepo.getUserInfo(owner), borrower?.let { userRepo.getUserInfo(it) })
-}
