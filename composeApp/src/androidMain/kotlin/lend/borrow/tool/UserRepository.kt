@@ -11,6 +11,7 @@ import dev.gitlive.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
+import lend.borrow.tool.utility.distanceToOtherPoint
 import kotlin.math.cos
 
 
@@ -104,14 +105,17 @@ class UserRepository(val application: Application) {
 
     }
 
-    suspend fun getNearByOwners(callback: suspend (List<User>) -> Unit) {
+    suspend fun getNearByOwners(
+        distance: Int = 1, // Kilometer
+        callback: suspend (List<User>) -> Unit
+    ) {
         if (this.nearByOwners.isNotEmpty())
             callback(this.nearByOwners)
         else
             currentUser.value?.geoPoint?.let { location ->
                 val tempListOfOwnerNearBy = mutableListOf<User>()
                 val collectionRef = Firebase.firestore.collection("Users")
-                val corners = calculateBoundingBoxCoordinates(location, 1)
+                val corners = calculateBoundingBoxCoordinates(location, distance)
                 val queryResult = collectionRef
                     .orderBy("longitude")
                     .where {
@@ -127,7 +131,10 @@ class UserRepository(val application: Application) {
                 queryResult.documents.forEach {
                     if ((it.id != currentUser.value?.id)) {
                         val tmpUser = it.data<User>()
-                        tempListOfOwnerNearBy.add(tmpUser)
+                        tmpUser.geoPoint?.let {
+                            if(it.distanceToOtherPoint(location) <= distance)
+                                tempListOfOwnerNearBy.add(tmpUser)
+                        }
                     }
                 }
                 _nearByOwners.addAll(tempListOfOwnerNearBy)

@@ -40,6 +40,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -84,25 +85,11 @@ fun RegisteredToolsScreen(
     val userViewModel: UserViewModel = viewModel{
         UserViewModel(application)
     }
-    val context = LocalContext.current
+
+    val data by toolsViewModel.data.collectAsState()
 
 
-    var _data = mutableListOf<ToolInApp>()
-    var data: List<ToolInApp> by remember {
-        mutableStateOf(mutableListOf())
-    }
-
-    var fetchingToolsInProgress by remember {
-        mutableStateOf(true)
-    }
-
-    user?.let {
-        toolsViewModel.getToolsFromRemote {
-            _data.addAll(it)
-            data = _data
-            fetchingToolsInProgress = false
-        }
-    }
+    val fetchingToolsInProgress by toolsViewModel.inProgress.collectAsState()
 
     var iNeedInput by rememberSaveable { mutableStateOf("") }
 
@@ -123,7 +110,7 @@ fun RegisteredToolsScreen(
             onValueChange = {
                 iNeedInput = it
                 if (it.isBlank())
-                    data = _data
+                    toolsViewModel.filterData(iNeedInput)
             },
             modifier = Modifier
                 .padding(horizontal = 10.dp)
@@ -133,26 +120,7 @@ fun RegisteredToolsScreen(
             leadingIcon = {
                 IconButton(
                     onClick = {
-                        if (iNeedInput.isNotBlank()) {
-                            if (iNeedInput.split(" ").size == 1) {
-                                data = _data.filter {
-                                    it.name.equals(iNeedInput, true)
-                                }
-                            } else
-                                context.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
-                                    val tempList = mutableListOf<ToolInApp>()
-                                    it.forEach { requiredTool ->
-                                        tempList.addAll(_data.filter { availableTool ->
-                                            availableTool.name
-                                                .replace(" ", "")
-                                                .equals(requiredTool.replace(" ", ""), true)
-                                        })
-                                    }
-                                    data = tempList
-                                }
-
-                        } else
-                            data = _data
+                        toolsViewModel.filterData(iNeedInput)
                     }
                 ) {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
