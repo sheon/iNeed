@@ -1,16 +1,24 @@
 
-import android.app.Application
+import android.app.Activity
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.Card
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.material.TopAppBar
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -19,13 +27,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat.getColor
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -48,13 +62,27 @@ enum class BorrowLendAppScreen(val title: String, modifier: Modifier = Modifier)
 }
 
 @Composable
-fun BorrowLendApp(navController: NavHostController = rememberNavController(), loginViewModel: LoginViewModel = LoginViewModel(application = Application(),  AuthenticationService(auth = Firebase.auth))) {
+fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
+
+    val context = LocalContext.current
+    val authService = AuthenticationService(auth = Firebase.auth)
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentScreen = BorrowLendAppScreen.valueOf(
         backStackEntry?.destination?.route ?: BorrowLendAppScreen.TOOLS.name
     )
+    val loginViewModel = viewModel {
+        LoginViewModel((context as Activity).application, authService)
+    }
+
     val user: State<User?> = loginViewModel.currentUser.collectAsState()
+
+    val shouldEditUserProfile = user.value?.address?.isEmpty() == true
+    val openDialog = remember {
+        mutableStateOf( user.value?.address?.isEmpty() == true)
+    }
+
+
     MaterialTheme {
 
         Scaffold(
@@ -69,6 +97,8 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController(), lo
             NavHost(
                 navController = navController,
                 startDestination = if (user.value == null) BorrowLendAppScreen.LOGIN.name
+                else if (user.value?.address?.isEmpty() == true)
+                    BorrowLendAppScreen.USER.name
                 else
                     BorrowLendAppScreen.TOOLS.name,
                 modifier = Modifier
@@ -88,13 +118,26 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController(), lo
                 }
 
                 composable(BorrowLendAppScreen.USER.name) {
-                    user.value?.let { user ->
+
+
+                    if (openDialog.value) {
+                        AddressRequiredWarningDialog(
+                            onNegativeClick = {
+                                loginViewModel.onSignOut()
+                                openDialog.value = false
+                            },
+                            onPositiveClick = {
+                                openDialog.value = false
+                            })
+                    }
+                    user.value?.let {
                         UserProfile(
-                            user,
                             loginViewModel = loginViewModel,
-                            navController = navController
+                            navController = navController,
+                            isEditingUserProfile = shouldEditUserProfile
                         )
                     }
+
                 }
 
             }
@@ -140,12 +183,13 @@ fun BorrowLendAppBar(
                     }
 
                     navController.currentDestination?.route == BorrowLendAppScreen.USER.name -> {
-                        IconButton(onClick = { navController.navigateUp() }) {
-                            Icon(
-                                imageVector = Icons.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
-                        }
+                        if (navController.currentBackStackEntry?.arguments?.getBoolean("isEditingUserProfile") == false)
+                            IconButton(onClick = { navController.navigateUp() }) {
+                                Icon(
+                                    imageVector = Icons.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
+                            }
                     }
                 }
             }
@@ -161,3 +205,47 @@ fun BorrowLendAppBar(
     }
 }
 
+
+@Composable
+fun AddressRequiredWarningDialog(
+    onNegativeClick: () -> Unit,
+    onPositiveClick: () -> Unit
+) {
+    Dialog(onDismissRequest = {},
+        DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false)
+    ) {
+        Card(
+            elevation = 8.dp,
+            shape = RoundedCornerShape(12.dp),
+            backgroundColor = Color.LightGray
+        ) {
+            Column(Modifier.padding(15.dp)) {
+                Text(modifier = Modifier.padding(5.dp),
+                    text = "You need to provide your address so other users nearby can find the tools you can lend them. Your address is not visible to any other user and only used to proximate your location.",
+                    textAlign = TextAlign.Justify)
+                // Buttons
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    TextButton(modifier = Modifier.padding(5.dp),
+                        colors = ButtonDefaults.buttonColors(Color.LightGray, Color.Black),
+                        shape = RoundedCornerShape(2.dp),
+                        onClick = onNegativeClick) {
+                        Text(text = "CANCEL")
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    TextButton(modifier = Modifier.padding(5.dp),
+                        shape = RoundedCornerShape(2.dp),
+                        colors = ButtonDefaults.textButtonColors(Color(LocalContext.current.getColor(lend.borrow.tool.shared.R.color.primary)), Color.White),
+                        onClick = {
+                            onPositiveClick()
+                        }) {
+                        Text(text = "OK")
+                    }
+                }
+            }
+        }
+    }
+}

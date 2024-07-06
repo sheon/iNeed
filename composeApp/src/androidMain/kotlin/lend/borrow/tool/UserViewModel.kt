@@ -9,6 +9,8 @@ class UserViewModel(private val application: Application): BaseViewModel() {
         UserRepository.getInstance(application)
     }
 
+    val currentUser = userRepo.currentUser
+
     fun updateUserInfo(user: User) {
         launchWithCatchingException {
             userRepo.updateUserInfo(user)

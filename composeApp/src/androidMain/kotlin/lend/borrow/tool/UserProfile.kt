@@ -2,7 +2,6 @@ package lend.borrow.tool
 
 import BorrowLendAppScreen
 import ToolInFireStore
-import User
 import android.app.Activity
 import android.location.Geocoder
 import android.net.Uri
@@ -58,7 +57,6 @@ import java.util.UUID
 
 @Composable
 fun UserProfile(
-    user: User,
     viewModel: GlobalLoadingViewModel = GlobalLoadingViewModel(),
     loginViewModel: LoginViewModel,
     navController: NavController,
@@ -74,20 +72,22 @@ fun UserProfile(
         mutableStateOf(isEditingUserProfile)
     }
 
-    var userName by remember {
-        mutableStateOf(user.name)
-    }
-
-    var userAddress by remember {
-        mutableStateOf(user.address)
-    }
-
     val userViewModel = androidx.lifecycle.viewmodel.compose.viewModel {
         UserViewModel((context as Activity).application)
     }
 
+    val user by userViewModel.currentUser.collectAsState() // if we have made it this far, the user should not be null. If it is null, then there is something wrong!
+    var userName by remember {
+        mutableStateOf(user!!.name)
+    }
+
+    var userAddress by remember {
+        mutableStateOf(user!!.address)
+    }
+
+
     var userAvailability: Boolean by remember {
-        mutableStateOf(user.availableAtTheMoment)
+        mutableStateOf(user!!.availableAtTheMoment)
     }
     if (state.loading)
         CircularProgressIndicator(modifier = Modifier.wrapContentSize())
@@ -101,7 +101,6 @@ fun UserProfile(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = if (isEditingUserProfile.not()) Arrangement.SpaceBetween else Arrangement.End ) {
                 if (isEditingUserProfile.not()) {
                     Switch(checked = userAvailability, onCheckedChange = {
-                        user.availableAtTheMoment = it
                         userAvailability = it
                     })
                     IconButton(onClick = {
@@ -115,21 +114,24 @@ fun UserProfile(
                     }
                 } else {
                     IconButton(onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            Geocoder(context).getFromLocationName(user.address, 1) {
-                                val geoPoint = GeoPoint(it.first().latitude, it.first().longitude)
-                                user.geoPoint = geoPoint
-                                userViewModel.updateUserInfo(user)
+                        val geoPoint = if (userAddress.isNotEmpty())
+                            Geocoder(context).getFromLocationName(userAddress, 1)?.let {
+                                if (it.size != 0)
+                                    GeoPoint(it.first().latitude, it.first().longitude)
+                                else {
+                                    userAddress = ""
+                                    null
+                                }
                             }
-                        } else {
-                           Geocoder(context).getFromLocationName(user.address, 1)?.let {
-                               val geoPoint =
-                                   GeoPoint(it.first().latitude, it.first().longitude)
-                               user.geoPoint = geoPoint
-                               userViewModel.updateUserInfo(user)
-                           }
-
-                        }
+                        else
+                            null
+                        userViewModel.updateUserInfo(
+                            user!!.copy(
+                                address = userAddress,
+                                geoPoint = geoPoint,
+                                name = userName
+                            )
+                        )
                         isEditingUserProfile = !isEditingUserProfile
                     }) {
                         Column {
@@ -162,12 +164,11 @@ fun UserProfile(
                         Text("User name")
                     },
                     onValueChange = {
-                        user.name = it
                         userName = it //This update should be handled by updating the user in the repository
                     }
                 )
             else {
-                Text(text = "${user.name.ifEmpty { "Unknown user" }} (is ${if (user.availableAtTheMoment) "available" else "not available"})")
+                Text(text = "${userName.ifEmpty { "Unknown user" }} (is ${if (user!!.availableAtTheMoment) "available" else "not available"})")
             }
         }
 
@@ -190,13 +191,12 @@ fun UserProfile(
                         Text("User address")
                     },
                     onValueChange = {
-                        user.address = it
                         userAddress = it //This update should be handled by updating the user in the repository
                     }
                 )
             else {
                 Text(
-                    text = user.address.ifEmpty { "Unknown" }, Modifier
+                    text = userAddress.ifEmpty { "Unknown" }, Modifier
                         .fillMaxWidth()
                 )
             }
@@ -206,7 +206,7 @@ fun UserProfile(
             Modifier.fillMaxWidth(),
             fontWeight = FontWeight.ExtraBold)
         Text(
-            text = user.email,
+            text = user!!.email,
             Modifier
                 .fillMaxWidth()
                 .padding(10.dp)
@@ -217,7 +217,7 @@ fun UserProfile(
             fontWeight = FontWeight.ExtraBold)
 
         Text(
-            text = user.subscription,
+            text = user!!.subscription,
             Modifier
                 .fillMaxWidth()
                 .padding(10.dp)
@@ -267,7 +267,7 @@ fun UserProfile(
         }, { toolName, toolDescription, tags, images ->
             viewModel.loadingInProgress()
             openDialog.value = false
-            val tempTool = ToolInFireStore(toolName, "", toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), owner = user.id)
+            val tempTool = ToolInFireStore(toolName, "", toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), owner = user!!.id)
             GlobalScope.launch {// The scope should be fixed later
                 uploadTool(tempTool, dbTools, viewModel)
             }
