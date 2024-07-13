@@ -27,8 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -78,9 +76,6 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
     val user: State<User?> = loginViewModel.currentUser.collectAsState()
 
     val shouldEditUserProfile = user.value?.address?.isEmpty() == true
-    val openDialog = remember {
-        mutableStateOf( user.value?.address?.isEmpty() == true)
-    }
 
 
     MaterialTheme {
@@ -96,7 +91,8 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = if (user.value == null) BorrowLendAppScreen.LOGIN.name
+                startDestination = if (user.value == null)
+                    BorrowLendAppScreen.LOGIN.name
                 else if (user.value?.address?.isEmpty() == true)
                     BorrowLendAppScreen.USER.name
                 else
@@ -119,19 +115,9 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
 
                 composable(BorrowLendAppScreen.USER.name) {
 
-
-                    if (openDialog.value) {
-                        AddressRequiredWarningDialog(
-                            onNegativeClick = {
-                                loginViewModel.onSignOut()
-                                openDialog.value = false
-                            },
-                            onPositiveClick = {
-                                openDialog.value = false
-                            })
-                    }
                     user.value?.let {
                         UserProfile(
+                            it,
                             loginViewModel = loginViewModel,
                             navController = navController,
                             isEditingUserProfile = shouldEditUserProfile
@@ -208,6 +194,7 @@ fun BorrowLendAppBar(
 
 @Composable
 fun AddressRequiredWarningDialog(
+    message: String,
     onNegativeClick: () -> Unit,
     onPositiveClick: () -> Unit
 ) {
@@ -221,7 +208,7 @@ fun AddressRequiredWarningDialog(
         ) {
             Column(Modifier.padding(15.dp)) {
                 Text(modifier = Modifier.padding(5.dp),
-                    text = "You need to provide your address so other users nearby can find the tools you can lend them. Your address is not visible to any other user and only used to proximate your location.",
+                    text = message,
                     textAlign = TextAlign.Justify)
                 // Buttons
                 Row(

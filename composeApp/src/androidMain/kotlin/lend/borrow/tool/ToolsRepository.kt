@@ -38,10 +38,10 @@ class ToolsRepository(val application: Application) {
                             toolList.add(transformedTool.copy(id = d.id)) // This ID will be used only in the app after the tool is fetched and there is not need to store it on FireStore.
                         }
                     }
-                    retrievedData.invoke(toolList)
                 } else {
                     println("Ehsan: No data found in Database")
                 }
+                retrievedData.invoke(toolList)
             }
         }
 

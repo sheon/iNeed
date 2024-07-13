@@ -10,6 +10,7 @@ import dev.gitlive.firebase.firestore.GeoPoint
 import dev.gitlive.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import lend.borrow.tool.utility.distanceToOtherPoint
 import kotlin.math.cos
@@ -19,7 +20,8 @@ class UserRepository(val application: Application) {
     private val authService: AuthenticationService = AuthenticationService(
         Firebase.auth
     )
-
+    val db: FirebaseFirestore = Firebase.firestore
+    val dbUsers: CollectionReference = db.collection("Users")
     companion object {
     private lateinit var instance: UserRepository
         fun getInstance(application: Application): UserRepository {
@@ -30,8 +32,6 @@ class UserRepository(val application: Application) {
         }
     }
 
-    val db: FirebaseFirestore = Firebase.firestore
-    val dbUsers: CollectionReference = db.collection("Users")
 
     private val _currentUser = MutableStateFlow(runBlocking { getCurrentUser() })
     val currentUser = _currentUser.asStateFlow()
@@ -40,8 +40,7 @@ class UserRepository(val application: Application) {
             val signedUpUser = User(
                 it.uid,
                 "",
-                "",
-                geoPoint = GeoPoint(0.0, 0.0)
+                ""
             )
             dbUsers.document(it.uid).set(signedUpUser)
             _currentUser.value = signedUpUser
@@ -106,7 +105,7 @@ class UserRepository(val application: Application) {
     }
 
     suspend fun getNearByOwners(
-        distance: Int = 1, // Kilometer
+        distance: Int = 2, // Kilometer
         callback: suspend (List<User>) -> Unit
     ) {
         if (this.nearByOwners.isNotEmpty())
@@ -129,7 +128,7 @@ class UserRepository(val application: Application) {
                         "latitude".lessThanOrEqualTo(corners[1].latitude)
                     }.get()
                 queryResult.documents.forEach {
-                    if ((it.id != currentUser.value?.id)) {
+                    if ((it.id != currentUser.first()?.id)) {
                         val tmpUser = it.data<User>()
                         tmpUser.geoPoint?.let {
                             if(it.distanceToOtherPoint(location) <= distance)

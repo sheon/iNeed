@@ -1,11 +1,14 @@
 package lend.borrow.tool
 
+import AddressRequiredWarningDialog
 import BorrowLendAppScreen
 import ToolInFireStore
+import User
 import android.app.Activity
 import android.location.Geocoder
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -57,6 +61,7 @@ import java.util.UUID
 
 @Composable
 fun UserProfile(
+    signedInUser: User,
     viewModel: GlobalLoadingViewModel = GlobalLoadingViewModel(),
     loginViewModel: LoginViewModel,
     navController: NavController,
@@ -64,7 +69,7 @@ fun UserProfile(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
-    val openDialog = remember { mutableStateOf(false) }
+
     val db: FirebaseFirestore = Firebase.firestore
     val dbTools: CollectionReference = db.collection("Tools")
 
@@ -75,8 +80,13 @@ fun UserProfile(
     val userViewModel = androidx.lifecycle.viewmodel.compose.viewModel {
         UserViewModel((context as Activity).application)
     }
+    val user by userViewModel.currentUser.collectAsState(signedInUser) // if we have made it this far, the user should not be null. If it is null, then there is something wrong!
 
-    val user by userViewModel.currentUser.collectAsState() // if we have made it this far, the user should not be null. If it is null, then there is something wrong!
+
+    val openAddToolDialog = remember { mutableStateOf(false) }
+    val openAddressRequiredDialog = remember {
+        mutableStateOf( user!!.address.isEmpty())
+    }
     var userName by remember {
         mutableStateOf(user!!.name)
     }
@@ -114,28 +124,44 @@ fun UserProfile(
                     }
                 } else {
                     IconButton(onClick = {
-                        val geoPoint = if (userAddress.isNotEmpty())
-                            Geocoder(context).getFromLocationName(userAddress, 1)?.let {
-                                if (it.size != 0)
-                                    GeoPoint(it.first().latitude, it.first().longitude)
-                                else {
-                                    userAddress = ""
-                                    null
+                        val geoPoint = when {
+                            userAddress.isNotEmpty() && userAddress.equals(user!!.address, true).not() || user!!.geoPoint == null -> {
+                                Geocoder(context).getFromLocationName(userAddress, 1)?.let {
+                                    if (it.size != 0)
+                                        GeoPoint(it.first().latitude, it.first().longitude)
+                                    else {
+                                        userAddress = ""
+                                        null
+                                    }
                                 }
                             }
-                        else
-                            null
-                        userViewModel.updateUserInfo(
-                            user!!.copy(
-                                address = userAddress,
-                                geoPoint = geoPoint,
-                                name = userName
+
+                            userAddress.equals(
+                                user!!.address,
+                                true
+                            ) -> user!!.geoPoint // No need to run the geoCoder again
+                            else -> null
+                        }
+
+                        geoPoint?.let {
+                            userViewModel.updateUserInfo(
+                                user!!.copy(
+                                    address = userAddress,
+                                    name = userName,
+                                    geoPoint = it
+                                )
                             )
-                        )
-                        isEditingUserProfile = !isEditingUserProfile
+                            isEditingUserProfile = !isEditingUserProfile
+                        } ?: run {
+                            userViewModel.provideAddressMessage =
+                                context.getString(R.string.bad_address_message)
+                            openAddressRequiredDialog.value = true
+                        }
+
+
                     }) {
                         Column {
-                            Icon(Icons.Filled.Done, "Save user profile data.")
+                            Icon(Icons.Filled.Done, stringResource(R.string.save_user_profile_data))
                             Text(text = "Save")
                         }
 
@@ -240,7 +266,7 @@ fun UserProfile(
             verticalAlignment = Alignment.Bottom) {
             SmallFloatingActionButton(
                 onClick = {
-                    openDialog.value = true
+                    openAddToolDialog.value = true
                 },
                 Modifier
                     .wrapContentSize(),
@@ -258,15 +284,24 @@ fun UserProfile(
 
     }
 
-
-    if (openDialog.value)
+    if (openAddressRequiredDialog.value) {
+        AddressRequiredWarningDialog(
+            userViewModel.provideAddressMessage,
+            onNegativeClick = {
+                loginViewModel.onSignOut()
+                openAddressRequiredDialog.value = false
+            },
+            onPositiveClick = {
+                openAddressRequiredDialog.value = false
+            })
+    } else if (openAddToolDialog.value)
         CustomDialogWithResult({
-            openDialog.value = false
+            openAddToolDialog.value = false
         }, {
-            openDialog.value = false
+            openAddToolDialog.value = false
         }, { toolName, toolDescription, tags, images ->
             viewModel.loadingInProgress()
-            openDialog.value = false
+            openAddToolDialog.value = false
             val tempTool = ToolInFireStore(toolName, "", toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), owner = user!!.id)
             GlobalScope.launch {// The scope should be fixed later
                 uploadTool(tempTool, dbTools, viewModel)

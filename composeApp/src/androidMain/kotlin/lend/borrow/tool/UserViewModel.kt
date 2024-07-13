@@ -11,6 +11,8 @@ class UserViewModel(private val application: Application): BaseViewModel() {
 
     val currentUser = userRepo.currentUser
 
+    var provideAddressMessage = application.getString(R.string.provide_address_message)
+
     fun updateUserInfo(user: User) {
         launchWithCatchingException {
             userRepo.updateUserInfo(user)

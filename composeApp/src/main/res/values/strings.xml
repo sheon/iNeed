@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bad_address_message">The address you provided is not valid. Please check the address or provide the closest valid address to you.</string>
+    <string name="provide_address_message">You need to fill in your address so other users nearby can find the tools you can lend them. Your address is not visible to other users and only used to proximate your location.</string>
+    <string name="save_user_profile_data">Save user profile data.</string>
+</resources>
