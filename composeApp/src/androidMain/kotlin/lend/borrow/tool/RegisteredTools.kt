@@ -88,7 +88,6 @@ fun RegisteredToolsScreen(
 
     val data by toolsViewModel.data.collectAsState()
 
-
     val fetchingToolsInProgress by toolsViewModel.inProgress.collectAsState()
 
     var iNeedInput by rememberSaveable { mutableStateOf("") }
@@ -147,7 +146,7 @@ fun RegisteredToolsScreen(
                     key = {
                         it.id
                     }) {
-                    ListItem(it, user, toolsViewModel, userViewModel)
+                    ListItem(it, user, toolsViewModel)
                 }
             }
     }
@@ -192,8 +191,7 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 fun ListItem(
     tool: ToolInApp,
     user: User?,
-    toolsViewModel: ToolsViewModel,
-    userViewModel: UserViewModel
+    toolsViewModel: ToolsViewModel
 ) {
     var tool_tmp: ToolInApp by remember {
         mutableStateOf(tool)
@@ -230,7 +228,7 @@ fun ListItem(
                         .height(200.dp),
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    items(tool_tmp.images) {
+                    items(tool_tmp.imageUrls) {
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -250,8 +248,6 @@ fun ListItem(
 
                 }
             }
-            Text(text = "Tool id: ", fontWeight = FontWeight.Bold)
-            Text(text = tool.id, modifier = Modifier.padding(5.dp))
             Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
             Text(text = tool.name, modifier = Modifier.padding(5.dp))
             Text(text = "Description: ", fontWeight = FontWeight.Bold)

@@ -1,5 +1,6 @@
 package lend.borrow.tool
 
+import User
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,8 +25,6 @@ class LoginViewModel(
 
     val currentUser = userRepo.currentUser
 
-    private val _isSigningUp = MutableStateFlow(false)
-    val isSigningUp = _isSigningUp.asStateFlow()
 
     private val isButtonEnabled: StateFlow<Boolean> = combine(uiState) { states ->
         val state = states.first()
@@ -57,6 +56,7 @@ class LoginViewModel(
             _isProcessing.value = true
             authService.authenticate(_uiState.value.email, _uiState.value.password).let {
                 it.user?.let { fireBaseUser ->
+                    _latestErrorMessage.value = null
                     userRepo.fetchUser(fireBaseUser.uid).let {
                             _latestErrorMessage.value = null
                             _uiState.value = LoginUiState()
@@ -78,13 +78,21 @@ class LoginViewModel(
             _isProcessing.value = true
             userRepo.createUser(_uiState.value.email, _uiState.value.password)
             _isProcessing.value = false
+            _latestErrorMessage.value = null
         }
 
     }
 
-    fun onSignOut() {
+    fun signOut() {
         launchWithCatchingException {
             userRepo.signOut()
+            _uiState.update { LoginUiState() }
+        }
+    }
+
+    fun deleteAccount(user: User) {
+        launchWithCatchingException {
+            userRepo.deleteAccount(user)
         }
     }
 

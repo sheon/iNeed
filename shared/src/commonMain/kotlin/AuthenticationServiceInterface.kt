@@ -9,4 +9,5 @@ interface AuthenticationServiceInterface {
     suspend fun createUser(email: String, password: String): AuthResult
 
     suspend fun signOut()
+    suspend fun deleteAccount()
 }

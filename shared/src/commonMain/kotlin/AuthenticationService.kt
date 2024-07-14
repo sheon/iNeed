@@ -33,4 +33,10 @@ class AuthenticationService(
             auth.signOut()
         }.await()
     }
+
+    override suspend fun deleteAccount() {
+        scope.async {
+            auth.currentUser?.delete()
+        }.await()
+    }
 }

@@ -27,5 +27,7 @@ data class User(
     val ownTools: MutableList<String> = mutableListOf<String>(),
     val borrowedTools: MutableList<String> = mutableListOf<String>(),
     val lentTools: MutableList<String> = mutableListOf<String>(),
-    var geoPoint: GeoPoint? = null
+    var geoPoint: GeoPoint? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )

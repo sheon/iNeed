@@ -40,7 +40,8 @@ class UserRepository(val application: Application) {
             val signedUpUser = User(
                 it.uid,
                 "",
-                ""
+                "",
+                it.email ?: ""
             )
             dbUsers.document(it.uid).set(signedUpUser)
             _currentUser.value = signedUpUser
@@ -50,10 +51,11 @@ class UserRepository(val application: Application) {
     private val _nearByOwners = mutableListOf<User>()
     val nearByOwners = _nearByOwners
 
-    suspend fun fetchUser(id: String) {
+    suspend fun fetchUser(id: String, callBack: () -> Unit = {}) {
         dbUsers.document(id).get().let { dataSnapShot ->
             dataSnapShot.data<User>().let { userInfo ->
                 _currentUser.value = userInfo
+                callBack()
             }
         }
     }
@@ -69,14 +71,27 @@ class UserRepository(val application: Application) {
         _nearByOwners.clear()
     }
 
+    suspend fun deleteAccount(user: User) {
+        if (user.borrowedTools.isEmpty() && user.lentTools.isEmpty()) {
+            val toolRepo = ToolsRepository.getInstance(application)
+            toolRepo.deleteTools(user.ownTools.toList())
+            dbUsers.document(user.id).delete()
+            authService.deleteAccount()
+            authService.signOut()
+            _currentUser.value = getCurrentUser()
+            _nearByOwners.clear()
+        }
+
+    }
+
     suspend fun updateUserFavoriteTools(user: User) {
         dbUsers.document(user.id).update("favoriteTools" to user.favoriteTools)
         fetchUser(user.id)
     }
 
-    suspend fun updateUserInfo(user: User) {
+    suspend fun updateUserInfo(user: User, progressCallBack: () -> Unit) {
         dbUsers.document(user.id).update(user)
-        fetchUser(user.id)
+        fetchUser(user.id, progressCallBack)
     }
 
     suspend fun getUserInfo(userID: String): User? {

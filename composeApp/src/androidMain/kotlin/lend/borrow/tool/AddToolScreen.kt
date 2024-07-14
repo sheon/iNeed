@@ -40,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
@@ -53,7 +54,9 @@ fun CustomDialogWithResult(
     onNegativeClick: () -> Unit,
     onPositiveClick: (String, String, List<String>, List<String>) -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismiss,
+        DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false)
+    ) {
         val context = LocalContext.current
         var toolName by rememberSaveable { mutableStateOf("") }
         var toolDescription by rememberSaveable { mutableStateOf("") }

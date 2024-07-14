@@ -1,16 +1,14 @@
 package lend.borrow.tool
 
-import AddressRequiredWarningDialog
 import BorrowLendAppScreen
-import ToolInFireStore
 import User
 import android.app.Activity
 import android.location.Geocoder
-import android.net.Uri
-import android.os.Build
-import android.util.Log
-import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -44,6 +42,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getColor
@@ -53,11 +52,7 @@ import dev.gitlive.firebase.firestore.CollectionReference
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.GeoPoint
 import dev.gitlive.firebase.firestore.firestore
-import dev.gitlive.firebase.storage.File
-import dev.gitlive.firebase.storage.storage
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
-import java.util.UUID
+import lend.borrow.tool.utility.GenericWarningDialog
 
 @Composable
 fun UserProfile(
@@ -67,7 +62,6 @@ fun UserProfile(
     navController: NavController,
     isEditingUserProfile: Boolean = false
 ) {
-    val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
     val db: FirebaseFirestore = Firebase.firestore
@@ -80,6 +74,7 @@ fun UserProfile(
     val userViewModel = androidx.lifecycle.viewmodel.compose.viewModel {
         UserViewModel((context as Activity).application)
     }
+    val uploadInProgress by userViewModel.uploadInProgress.collectAsState()
     val user by userViewModel.currentUser.collectAsState(signedInUser) // if we have made it this far, the user should not be null. If it is null, then there is something wrong!
 
 
@@ -87,6 +82,8 @@ fun UserProfile(
     val openAddressRequiredDialog = remember {
         mutableStateOf( user!!.address.isEmpty())
     }
+    val openDeleteAccountDialog = remember { mutableStateOf(false) }
+
     var userName by remember {
         mutableStateOf(user!!.name)
     }
@@ -99,8 +96,7 @@ fun UserProfile(
     var userAvailability: Boolean by remember {
         mutableStateOf(user!!.availableAtTheMoment)
     }
-    if (state.loading)
-        CircularProgressIndicator(modifier = Modifier.wrapContentSize())
+
     Column(
         Modifier
             .fillMaxWidth()
@@ -148,7 +144,9 @@ fun UserProfile(
                                 user!!.copy(
                                     address = userAddress,
                                     name = userName,
-                                    geoPoint = it
+                                    geoPoint = it,
+                                    latitude = it.latitude,
+                                    longitude = it.longitude
                                 )
                             )
                             isEditingUserProfile = !isEditingUserProfile
@@ -249,15 +247,25 @@ fun UserProfile(
                 .padding(10.dp)
         )
 
-        Spacer(modifier = Modifier.height(64.dp))
+        if (isEditingUserProfile.not()) {
 
-        if (isEditingUserProfile.not())
+            Spacer(modifier = Modifier.height(64.dp))
+
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 ClickableText(text = AnnotatedString("Sign out")) {
-                    loginViewModel.onSignOut()
+                    loginViewModel.signOut()
                     navController.navigate(BorrowLendAppScreen.LOGIN.name)
                 }
             }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                ClickableText(text = AnnotatedString("Delete account"), style = TextStyle(color = Color.Red, fontWeight = FontWeight.ExtraBold)) {
+                    openDeleteAccountDialog.value = true
+                }
+            }
+        }
 
 
 
@@ -285,10 +293,10 @@ fun UserProfile(
     }
 
     if (openAddressRequiredDialog.value) {
-        AddressRequiredWarningDialog(
+        GenericWarningDialog(
             userViewModel.provideAddressMessage,
             onNegativeClick = {
-                loginViewModel.onSignOut()
+                loginViewModel.signOut()
                 openAddressRequiredDialog.value = false
             },
             onPositiveClick = {
@@ -302,31 +310,51 @@ fun UserProfile(
         }, { toolName, toolDescription, tags, images ->
             viewModel.loadingInProgress()
             openAddToolDialog.value = false
-            val tempTool = ToolInFireStore(toolName, "", toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), owner = user!!.id)
-            GlobalScope.launch {// The scope should be fixed later
-                uploadTool(tempTool, dbTools, viewModel)
-            }
-
+            userViewModel.uploadTool(toolName, toolDescription, tags = tags.toMutableList(), images = images.toMutableList(), ownerId = user!!.id)
         })
-}
+    else if (openDeleteAccountDialog.value)
+        GenericWarningDialog(
+            "Are you sure that you want to delete the account: \n${user!!.email}",
+            positiveText = stringResource(R.string.delete),
+            positiveColor = Color.Red,
+            onNegativeClick = {
+                openDeleteAccountDialog.value = false
+            },
+            onPositiveClick = {
+                loginViewModel.deleteAccount(user!!)
+                openDeleteAccountDialog.value = false
+                navController.navigate(BorrowLendAppScreen.LOGIN.name)
+            })
 
-
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-suspend fun uploadTool(
-    tool: ToolInFireStore,
-    dbTools: CollectionReference,
-    viewModel: GlobalLoadingViewModel
-) {
-    val storage = Firebase.storage
-    val uploadedImagesNameWithSuffix = mutableListOf<String>()
-    tool.images.forEach { imageUUID ->
-        val imageNameWithSuffix = "${UUID.randomUUID()}.png"
-        val path = "tools/$imageNameWithSuffix"
-        val imageRef = storage.reference(path)
-        imageRef.putFile(File(Uri.parse(imageUUID)))
+    if (uploadInProgress) {
+        Box(Modifier
+            .fillMaxSize()
+            .background(Color.LightGray.copy(alpha = 0.8f))
+            .clickable(
+                indication = null, // disable ripple effect
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = { }
+            ), // This should prevent the layer under from catching the press event
+            contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(
+                    modifier = Modifier.wrapContentSize(),
+                    color = Color(
+                        getColor(
+                            LocalContext.current,
+                            lend.borrow.tool.shared.R.color.primary
+                        )
+                    )
+                )
+                Text(text = stringResource(R.string.uploading),
+                    fontWeight = FontWeight.Bold,
+                    color = Color(
+                        getColor(
+                            LocalContext.current,
+                            lend.borrow.tool.shared.R.color.primary
+                        )
+                    ))
+            }
+        }
     }
-    tool.images.clear()
-    tool.images.addAll(uploadedImagesNameWithSuffix)
-    dbTools.add(tool)
-    viewModel.loadingFinished()
 }
