@@ -19,10 +19,10 @@ class UserViewModel(private val application: Application): BaseViewModel() {
 
     val uploadInProgress = MutableStateFlow(false)
 
-    fun updateUserInfo(user: User, callback: () -> Unit = {}) {
+    fun updateUserInfo(newUserInfo: User, oldUserInfo: User) {
         uploadInProgress.value = true
         launchWithCatchingException {
-            userRepo.updateUserInfo(user) {
+            userRepo.updateUserInfo(newUserInfo, oldUserInfo) {
                 uploadInProgress.value = false
             }
         }
@@ -39,8 +39,9 @@ class UserViewModel(private val application: Application): BaseViewModel() {
         launchWithCatchingException {
             val addedTool = toolReo.uploadTool(toolName, toolDescription, tags , images , ownerId)
             currentUser.value?.let {
-                it.ownTools.add(addedTool.id)
-                userRepo.updateUserInfo(it) {
+                val tmpOwnTools = it.ownTools
+                tmpOwnTools.add(addedTool.id)
+                userRepo.updateUserInfo(it.copy(ownTools = tmpOwnTools), it) {
                     uploadInProgress.value = false
                 }
             }

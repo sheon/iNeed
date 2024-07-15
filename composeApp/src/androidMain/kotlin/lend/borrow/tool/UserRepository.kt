@@ -89,9 +89,11 @@ class UserRepository(val application: Application) {
         fetchUser(user.id)
     }
 
-    suspend fun updateUserInfo(user: User, progressCallBack: () -> Unit) {
-        dbUsers.document(user.id).update(user)
-        fetchUser(user.id, progressCallBack)
+    suspend fun updateUserInfo(newUserInfo: User, oldUserInfo: User, progressCallBack: () -> Unit) {
+        dbUsers.document(newUserInfo.id).update(newUserInfo)
+        if (newUserInfo.address != oldUserInfo.address)
+            _nearByOwners.clear()
+        fetchUser(newUserInfo.id, progressCallBack)
     }
 
     suspend fun getUserInfo(userID: String): User? {

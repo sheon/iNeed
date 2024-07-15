@@ -47,11 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getColor
 import androidx.navigation.NavController
-import dev.gitlive.firebase.Firebase
-import dev.gitlive.firebase.firestore.CollectionReference
-import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.GeoPoint
-import dev.gitlive.firebase.firestore.firestore
 import lend.borrow.tool.utility.GenericWarningDialog
 
 @Composable
@@ -63,9 +59,6 @@ fun UserProfile(
     isEditingUserProfile: Boolean = false
 ) {
     val context = LocalContext.current
-
-    val db: FirebaseFirestore = Firebase.firestore
-    val dbTools: CollectionReference = db.collection("Tools")
 
     var isEditingUserProfile by remember {
         mutableStateOf(isEditingUserProfile)
@@ -147,7 +140,8 @@ fun UserProfile(
                                     geoPoint = it,
                                     latitude = it.latitude,
                                     longitude = it.longitude
-                                )
+                                ),
+                                user!!
                             )
                             isEditingUserProfile = !isEditingUserProfile
                         } ?: run {

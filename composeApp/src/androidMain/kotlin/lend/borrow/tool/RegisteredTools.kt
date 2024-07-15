@@ -82,9 +82,6 @@ fun RegisteredToolsScreen(
     val toolsViewModel: ToolsViewModel = viewModel{
         ToolsViewModel(application)
     }
-    val userViewModel: UserViewModel = viewModel{
-        UserViewModel(application)
-    }
 
     val data by toolsViewModel.data.collectAsState()
 

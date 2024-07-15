@@ -159,7 +159,9 @@ fun BorrowLendAppBar(
 
                     navController.currentDestination?.route == BorrowLendAppScreen.USER.name -> {
                         if (navController.currentBackStackEntry?.arguments?.getBoolean("isEditingUserProfile") == false)
-                            IconButton(onClick = { navController.navigateUp() }) {
+                            IconButton(onClick = {
+                                navController.navigate(BorrowLendAppScreen.TOOLS.name)
+                            }) {
                                 Icon(
                                     imageVector = Icons.Filled.ArrowBack,
                                     contentDescription = "Back"
