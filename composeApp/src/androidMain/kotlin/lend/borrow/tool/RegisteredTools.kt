@@ -29,8 +29,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.pullrefresh.pullRefresh
+import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -74,6 +77,7 @@ import org.json.JSONObject
 import java.io.IOException
 
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun RegisteredToolsScreen(
     user: User?
@@ -89,10 +93,15 @@ fun RegisteredToolsScreen(
 
     var iNeedInput by rememberSaveable { mutableStateOf("") }
 
+    val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
+        toolsViewModel.refreshData()
+    })
+
     Column(
         Modifier
             .fillMaxSize()
-            .padding(top = 10.dp),
+            .padding(top = 10.dp)
+            .pullRefresh(pullRefreshState),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(

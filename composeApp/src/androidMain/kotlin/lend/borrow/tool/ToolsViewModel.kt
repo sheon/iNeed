@@ -3,7 +3,6 @@ package lend.borrow.tool
 import ToolInApp
 import User
 import android.app.Application
-import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class ToolsViewModel(private val application: Application) : BaseViewModel() {
@@ -25,9 +24,13 @@ class ToolsViewModel(private val application: Application) : BaseViewModel() {
         getToolsFromRemote()
     }
 
-    fun getToolsFromRemote()  {
+    fun refreshData() {
+        _data.clear()
+        userRepo.refreshData()
+        getToolsFromRemote()
+    }
+    private fun getToolsFromRemote()  {
         launchWithCatchingException {
-            Log.v("Ehsan", "getToolsFromRemote fetching  ${inProgress} ${this@ToolsViewModel}")
             if (!inProgress.value) {
                 inProgress.value = true
                 toolsRepo.getAvailableTools({

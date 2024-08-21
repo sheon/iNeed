@@ -91,8 +91,10 @@ class UserRepository(val application: Application) {
 
     suspend fun updateUserInfo(newUserInfo: User, oldUserInfo: User, progressCallBack: () -> Unit) {
         dbUsers.document(newUserInfo.id).update(newUserInfo)
-        if (newUserInfo.address != oldUserInfo.address)
+        if (newUserInfo.address != oldUserInfo.address) {
             _nearByOwners.clear()
+            nearByOwners.clear()
+        }
         fetchUser(newUserInfo.id, progressCallBack)
     }
 
@@ -158,4 +160,8 @@ class UserRepository(val application: Application) {
             }
     }
 
+    fun refreshData() {
+        _nearByOwners.clear()
+        nearByOwners.clear()
+    }
 }
