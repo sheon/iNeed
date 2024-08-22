@@ -28,20 +28,19 @@ import androidx.compose.ui.window.DialogProperties
 import dev.gitlive.firebase.firestore.GeoPoint
 import lend.borrow.tool.UserRepository
 import lend.borrow.tool.shared.R
-import kotlin.math.roundToInt
 
 suspend fun ToolInFireStore.toToolInApp(owner: User, userRepo: UserRepository): ToolInApp { // This may be avoided if we have one data class for tool.
     return ToolInApp(name, "", description, imageReferences, imageUrls, tags, available, owner, borrower?.let { userRepo.getUserInfo(it) })
 }
 
-fun GeoPoint.distanceToOtherPoint(point: GeoPoint): Int {
+fun GeoPoint.distanceToOtherPoint(point: GeoPoint): Float {
     val user1 = Location("user1")
     user1.latitude = latitude
     user1.longitude = longitude
     val user2 = Location("user2")
     user2.latitude = point.latitude
     user2.longitude = point.longitude
-    return user1.distanceTo(user2).roundToInt()/1000 // The return unit should be Kilometer
+    return user1.distanceTo(user2)/1000 // The return unit should be Kilometer
 }
 
 @Composable

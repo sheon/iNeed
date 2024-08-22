@@ -22,6 +22,7 @@ data class User(
     var address: String = "",
     val email: String = "",
     var availableAtTheMoment: Boolean = true,
+    var searchRadius: Int = 1,
     var subscription: String = "free",
     val favoriteTools: MutableList<String> = mutableListOf<String>(),
     val ownTools: MutableList<String> = mutableListOf<String>(),

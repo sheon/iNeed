@@ -91,7 +91,7 @@ class UserRepository(val application: Application) {
 
     suspend fun updateUserInfo(newUserInfo: User, oldUserInfo: User, progressCallBack: () -> Unit) {
         dbUsers.document(newUserInfo.id).update(newUserInfo)
-        if (newUserInfo.address != oldUserInfo.address) {
+        if (newUserInfo.address != oldUserInfo.address || newUserInfo.searchRadius != oldUserInfo.searchRadius) {
             _nearByOwners.clear()
             nearByOwners.clear()
         }
@@ -124,16 +124,17 @@ class UserRepository(val application: Application) {
     }
 
     suspend fun getNearByOwners(
-        distance: Int = 2, // Kilometer
+        distance: Int = 10, // Kilometer
         callback: suspend (List<User>) -> Unit
     ) {
         if (this.nearByOwners.isNotEmpty())
             callback(this.nearByOwners)
         else
             currentUser.value?.geoPoint?.let { location ->
+                val searchDistance = currentUser.value?.searchRadius ?: distance
                 val tempListOfOwnerNearBy = mutableListOf<User>()
                 val collectionRef = Firebase.firestore.collection("Users")
-                val corners = calculateBoundingBoxCoordinates(location, distance)
+                val corners = calculateBoundingBoxCoordinates(location, searchDistance)
                 val queryResult = collectionRef
                     .orderBy("longitude")
                     .where {
@@ -150,7 +151,7 @@ class UserRepository(val application: Application) {
                     if ((it.id != currentUser.first()?.id)) {
                         val tmpUser = it.data<User>()
                         tmpUser.geoPoint?.let {
-                            if(it.distanceToOtherPoint(location) <= distance)
+                            if(it.distanceToOtherPoint(location) <= searchDistance)
                                 tempListOfOwnerNearBy.add(tmpUser)
                         }
                     }

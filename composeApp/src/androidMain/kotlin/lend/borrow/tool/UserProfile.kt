@@ -3,7 +3,6 @@ package lend.borrow.tool
 import BorrowLendAppScreen
 import User
 import android.app.Activity
-import android.location.Geocoder
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -28,11 +27,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,7 +50,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getColor
 import androidx.navigation.NavController
-import dev.gitlive.firebase.firestore.GeoPoint
 import lend.borrow.tool.utility.GenericWarningDialog
 
 @Composable
@@ -85,6 +87,10 @@ fun UserProfile(
         mutableStateOf(user!!.address)
     }
 
+    var userSearchRadius by remember {
+        mutableIntStateOf(user!!.searchRadius)
+    }
+
 
     var userAvailability: Boolean by remember {
         mutableStateOf(user!!.availableAtTheMoment)
@@ -113,50 +119,33 @@ fun UserProfile(
                     }
                 } else {
                     IconButton(onClick = {
-                        val geoPoint = when {
-                            userAddress.isNotEmpty() && userAddress.equals(user!!.address, true).not() || user!!.geoPoint == null -> {
-                                Geocoder(context).getFromLocationName(userAddress, 1)?.let {
-                                    if (it.size != 0)
-                                        GeoPoint(it.first().latitude, it.first().longitude)
-                                    else {
-                                        userAddress = ""
-                                        null
-                                    }
+                        user?.let {loggedInUser ->
+                            userViewModel.geocodeAddress(userAddress, loggedInUser) { geoPoint->
+                                if (geoPoint != null) {
+                                    userViewModel.updateUserInfo(
+                                        loggedInUser.copy(
+                                            address = userAddress,
+                                            name = userName,
+                                            searchRadius = userSearchRadius,
+                                            geoPoint = geoPoint,
+                                            latitude = loggedInUser.latitude,
+                                            longitude = loggedInUser.longitude
+                                        ),
+                                        loggedInUser
+                                    )
+                                    isEditingUserProfile = !isEditingUserProfile
+                                } else {
+                                    userViewModel.provideAddressMessage =
+                                        context.getString(R.string.bad_address_message)
+                                    openAddressRequiredDialog.value = true
                                 }
                             }
-
-                            userAddress.equals(
-                                user!!.address,
-                                true
-                            ) -> user!!.geoPoint // No need to run the geoCoder again
-                            else -> null
                         }
-
-                        geoPoint?.let {
-                            userViewModel.updateUserInfo(
-                                user!!.copy(
-                                    address = userAddress,
-                                    name = userName,
-                                    geoPoint = it,
-                                    latitude = it.latitude,
-                                    longitude = it.longitude
-                                ),
-                                user!!
-                            )
-                            isEditingUserProfile = !isEditingUserProfile
-                        } ?: run {
-                            userViewModel.provideAddressMessage =
-                                context.getString(R.string.bad_address_message)
-                            openAddressRequiredDialog.value = true
-                        }
-
-
                     }) {
                         Column {
                             Icon(Icons.Filled.Done, stringResource(R.string.save_user_profile_data))
                             Text(text = "Save")
                         }
-
                     }
                 }
             }
@@ -165,7 +154,7 @@ fun UserProfile(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Text(text = "Name",
+        Text(text = "Name: ",
             Modifier.fillMaxWidth(),
             fontWeight = FontWeight.ExtraBold)
         Row(
@@ -190,7 +179,7 @@ fun UserProfile(
             }
         }
 
-        Text(text = "Address",
+        Text(text = "Address: ",
             Modifier.fillMaxWidth(),
             fontWeight = FontWeight.ExtraBold)
 
@@ -220,7 +209,45 @@ fun UserProfile(
             }
         }
 
-        Text(text = "Email",
+
+        Text(text = "Search radius: ",
+            Modifier.fillMaxWidth(),
+            fontWeight = FontWeight.ExtraBold)
+
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            user?.let {
+                Column {
+                    Text(
+                        text = "${userSearchRadius} km", Modifier
+                            .fillMaxWidth()
+                    )
+                    if (isEditingUserProfile)
+                        Slider(
+                            value = userSearchRadius.toFloat(),
+                            onValueChange = {
+                                userSearchRadius = it.toInt()
+                            },
+                            colors = SliderDefaults.colors(
+                                thumbColor = MaterialTheme.colorScheme.secondary,
+                                activeTrackColor = MaterialTheme.colorScheme.secondary,
+                                inactiveTrackColor = MaterialTheme.colorScheme.secondaryContainer,
+                            ),
+                            steps = 8,
+                            valueRange = 1f..10f
+                        )
+                }
+            }
+        }
+
+
+
+        Text(text = "Email: ",
             Modifier.fillMaxWidth(),
             fontWeight = FontWeight.ExtraBold)
         Text(
@@ -230,7 +257,7 @@ fun UserProfile(
                 .padding(10.dp)
         )
 
-        Text(text = "Subscription",
+        Text(text = "Subscription: ",
             Modifier.fillMaxWidth(),
             fontWeight = FontWeight.ExtraBold)
 
