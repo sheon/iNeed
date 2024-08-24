@@ -30,6 +30,7 @@ playServicesMaps = "18.2.0"
 firebaseFirestoreKtx = "25.0.0"
 firebaseCommonKtx = "21.0.0"
 firebaseAuthKtx = "23.0.0"
+playServicesLocation = "21.3.0"
 
 [libraries]
 firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "firebaseAuth" }
@@ -62,6 +63,7 @@ play-services-maps = { group = "com.google.android.gms", name = "play-services-m
 firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
 firebase-common-ktx = { group = "com.google.firebase", name = "firebase-common-ktx", version.ref = "firebaseCommonKtx" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuthKtx" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

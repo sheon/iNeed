@@ -9,6 +9,7 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.firestore.CollectionReference
 import dev.gitlive.firebase.firestore.DocumentReference
 import dev.gitlive.firebase.firestore.FirebaseFirestore
+import dev.gitlive.firebase.firestore.GeoPoint
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.storage.File
 import dev.gitlive.firebase.storage.storage
@@ -30,8 +31,8 @@ class ToolsRepository(val application: Application) {
             return instance
         }
     }
-    suspend fun getAvailableTools(retrievedData: (List<ToolInApp>) -> Unit, userRepository: UserRepository) {
-        userRepository.getNearByOwners { nearByOwners ->
+    suspend fun getAvailableTools(location: GeoPoint? = null, retrievedData: (List<ToolInApp>) -> Unit, userRepository: UserRepository) {
+        userRepository.getNearByOwners(location) { nearByOwners ->
             dbTools.get().let { queryDocumentSnapshots ->
                 val tmpOwnerIds = nearByOwners.associateBy { it.id }
                 val toolList = mutableListOf<ToolInApp>()

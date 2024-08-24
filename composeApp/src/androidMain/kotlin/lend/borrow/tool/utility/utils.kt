@@ -3,6 +3,9 @@ package lend.borrow.tool.utility
 import ToolInApp
 import ToolInFireStore
 import User
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
 import android.location.Location
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,7 +28,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationServices
 import dev.gitlive.firebase.firestore.GeoPoint
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import lend.borrow.tool.UserRepository
 import lend.borrow.tool.shared.R
 
@@ -91,4 +99,29 @@ fun GenericWarningDialog(
             }
         }
     }
+}
+
+fun hasLocationPermission(context: Context): Boolean {
+    return ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
+}
+
+@SuppressLint("MissingPermission")
+fun getCurrentLocation(context: Context, callback: suspend (Double, Double) -> Unit) {
+    val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+    fusedLocationClient.lastLocation
+        .addOnSuccessListener { location ->
+            if (location != null) {
+                val lat = location.latitude
+                val long = location.longitude
+                CoroutineScope(Dispatchers.IO).launch {
+                    callback(lat, long)
+                }
+            }
+        }
+        .addOnFailureListener { exception ->
+            exception.printStackTrace()
+        }
 }

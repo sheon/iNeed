@@ -2,9 +2,12 @@ package lend.borrow.tool
 
 import ToolInApp
 import User
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,6 +46,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -57,14 +61,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.getColor
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
+import lend.borrow.tool.utility.hasLocationPermission
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -89,13 +97,38 @@ fun RegisteredToolsScreen(
 
     val data by toolsViewModel.data.collectAsState()
 
-    val fetchingToolsInProgress by toolsViewModel.inProgress.collectAsState()
+    val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
+    val anythingInProgress by toolsViewModel.anythingInProgress.collectAsState(false)
 
     var iNeedInput by rememberSaveable { mutableStateOf("") }
 
     val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
         toolsViewModel.refreshData()
     })
+
+    val requestPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission())
+        { isGranted: Boolean ->
+            if (isGranted) {
+                // Permission granted, update the location
+                toolsViewModel.getAnonymousUserLocation(application) { lat, long ->
+                    toolsViewModel.getToolsFromRemote(GeoPoint(lat, long))
+                }
+            }
+        }
+
+
+
+    if (user == null && toolsViewModel.anonymousUserLocation == null )
+        if (hasLocationPermission(application)) {
+            toolsViewModel.getAnonymousUserLocation(application) { lat, long ->
+                toolsViewModel.getToolsFromRemote(GeoPoint(lat, long))
+            }
+        } else {
+            SideEffect {
+                requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+            }
+        }
 
     Column(
         Modifier
@@ -104,6 +137,21 @@ fun RegisteredToolsScreen(
             .pullRefresh(pullRefreshState),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        if (user == null)
+            Box(modifier = Modifier
+                .padding(horizontal = 10.dp)
+                .background(Color.Yellow)
+                .padding(horizontal = 10.dp)
+            ) {
+                Text(
+                    text = "As a guest, you can only browse through the list of tools available in 2km radius around your current location. You won't be able to borrow them or like them as your favorites. The search function only looks through the names and provided tags. To benefit from all features you need to sign in as a registered user.",
+                    modifier = Modifier
+                        .padding(10.dp),
+                    textAlign = TextAlign.Justify,
+                    fontStyle = FontStyle.Italic
+                )
+            }
+
         Text(
             text = "I need",
             modifier = Modifier
@@ -132,7 +180,7 @@ fun RegisteredToolsScreen(
                 }
             }
         )
-        if (fetchingToolsInProgress)
+        if (anythingInProgress)
             Box(modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(

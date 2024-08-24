@@ -124,17 +124,19 @@ class UserRepository(val application: Application) {
     }
 
     suspend fun getNearByOwners(
-        distance: Int = 10, // Kilometer
+        location: GeoPoint? = null,
+        distance: Int = 2, // Kilometer
         callback: suspend (List<User>) -> Unit
     ) {
+        val possibleLocation = location ?: currentUser.value?.geoPoint
         if (this.nearByOwners.isNotEmpty())
             callback(this.nearByOwners)
         else
-            currentUser.value?.geoPoint?.let { location ->
+            possibleLocation?.let { availableLocation ->
                 val searchDistance = currentUser.value?.searchRadius ?: distance
                 val tempListOfOwnerNearBy = mutableListOf<User>()
                 val collectionRef = Firebase.firestore.collection("Users")
-                val corners = calculateBoundingBoxCoordinates(location, searchDistance)
+                val corners = calculateBoundingBoxCoordinates(availableLocation, searchDistance)
                 val queryResult = collectionRef
                     .orderBy("longitude")
                     .where {
@@ -151,7 +153,7 @@ class UserRepository(val application: Application) {
                     if ((it.id != currentUser.first()?.id)) {
                         val tmpUser = it.data<User>()
                         tmpUser.geoPoint?.let {
-                            if(it.distanceToOtherPoint(location) <= searchDistance)
+                            if(it.distanceToOtherPoint(availableLocation) <= searchDistance)
                                 tempListOfOwnerNearBy.add(tmpUser)
                         }
                     }

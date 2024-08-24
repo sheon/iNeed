@@ -3,11 +3,18 @@ package lend.borrow.tool
 import ToolInApp
 import User
 import android.app.Application
+import android.content.Context
+import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.merge
+import lend.borrow.tool.utility.getCurrentLocation
 
 class ToolsViewModel(private val application: Application) : BaseViewModel() {
 
-    var inProgress = MutableStateFlow(false)
+    var fetchingToolsInProgress = MutableStateFlow(false)
+    var fetchingLocationInProgress = MutableStateFlow(false)
+
+    var anythingInProgress = merge(fetchingToolsInProgress, fetchingLocationInProgress)
 
     val toolsRepo by lazy {
         ToolsRepository.getInstance(application)
@@ -19,24 +26,37 @@ class ToolsViewModel(private val application: Application) : BaseViewModel() {
 
     var _data = mutableListOf<ToolInApp>()
     var data = MutableStateFlow<List<ToolInApp>>(emptyList())
-
     init {
-        getToolsFromRemote()
+        // In case, a registered user logs in then the tools should be fetched as soon as possible.
+        // This also helps fetching tools more smoothly when registered user updates their address
+        // or search radius. This call cannot be made from composable since it will cause an infinite
+        // loop but the viewModel is only created once.
+        if(userRepo.currentUser.value != null)
+            getToolsFromRemote()
     }
-
+    var anonymousUserLocation: GeoPoint? = null
     fun refreshData() {
         _data.clear()
         userRepo.refreshData()
-        getToolsFromRemote()
+        getToolsFromRemote(anonymousUserLocation)
     }
-    private fun getToolsFromRemote()  {
+
+    fun getAnonymousUserLocation(context: Context, callback: (Double, Double) -> Unit) {
+        fetchingLocationInProgress.value = true
+        getCurrentLocation(context){ lat, long ->
+            fetchingLocationInProgress.value = false
+            callback(lat, long)
+        }
+    }
+    fun getToolsFromRemote(location: GeoPoint? = null)  {
+        anonymousUserLocation = location
         launchWithCatchingException {
-            if (!inProgress.value) {
-                inProgress.value = true
-                toolsRepo.getAvailableTools({
+            if (!fetchingToolsInProgress.value) {
+                fetchingToolsInProgress.value = true
+                toolsRepo.getAvailableTools(location, {
                     _data.addAll(it)
                     data.value = _data
-                    inProgress.value = false
+                    fetchingToolsInProgress.value = false
                 }, userRepo)
             }
         }
@@ -57,7 +77,7 @@ class ToolsViewModel(private val application: Application) : BaseViewModel() {
                 })
                 data.value = tmpToolList
             } else {
-                inProgress.value = true
+                fetchingToolsInProgress.value = true
                 application.getResponseFromAI("what do I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
                     it.forEach { requiredTool ->
                         tmpToolList.addAll(_data.filter { availableTool ->
@@ -66,7 +86,7 @@ class ToolsViewModel(private val application: Application) : BaseViewModel() {
                                 .equals(requiredTool.replace(" ", ""), true)
                         })
                     }
-                    inProgress.value = false
+                    fetchingToolsInProgress.value = false
                     data.value = tmpToolList
                 }
             }
