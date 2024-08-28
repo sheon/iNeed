@@ -4,9 +4,11 @@ import ToolInApp
 import User
 import android.app.Application
 import android.content.Context
+import androidx.lifecycle.viewModelScope
 import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.launch
 import lend.borrow.tool.utility.getCurrentLocation
 
 class ToolsViewModel(private val application: Application) : BaseViewModel() {
@@ -23,9 +25,13 @@ class ToolsViewModel(private val application: Application) : BaseViewModel() {
     val userRepo by lazy {
         UserRepository.getInstance(application)
     }
+    val favorites: MutableStateFlow<List<String>>
+        get() = MutableStateFlow( userRepo.currentUser.value?.favoriteTools?: emptyList())
 
     var _data = mutableListOf<ToolInApp>()
     var data = MutableStateFlow<List<ToolInApp>>(emptyList())
+
+    var tool = MutableStateFlow<ToolInApp?>(null)
     init {
         // In case, a registered user logs in then the tools should be fetched as soon as possible.
         // This also helps fetching tools more smoothly when registered user updates their address
@@ -94,5 +100,13 @@ class ToolsViewModel(private val application: Application) : BaseViewModel() {
             tmpToolList.addAll(_data)
             data.value = tmpToolList
         }
+    }
+
+     fun getTool(toolId: String, ) {
+         viewModelScope.launch {
+             toolsRepo.getTool(toolId, {
+                 tool.value = it
+             }, userRepo)
+         }
     }
 }

@@ -1,5 +1,7 @@
 
 import android.app.Activity
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,7 +20,8 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,24 +32,21 @@ import androidx.core.content.ContextCompat.getColor
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import lend.borrow.tool.AuthenticationService
+import lend.borrow.tool.BorrowLendAppScreen
 import lend.borrow.tool.LoginScreen
 import lend.borrow.tool.LoginViewModel
 import lend.borrow.tool.RegisteredToolsScreen
+import lend.borrow.tool.ToolDetailScreen
 import lend.borrow.tool.UserProfile
 
-
-enum class BorrowLendAppScreen(val title: String, modifier: Modifier = Modifier) {
-    LOGIN(title = "Log in"),
-    TOOLS(title = "Items to borrow"),
-    USER(title = "User profile")
-}
 
 @Composable
 fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
@@ -54,10 +54,9 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
     val authService = AuthenticationService(auth = Firebase.auth)
 
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentScreen = BorrowLendAppScreen.valueOf(
-        backStackEntry?.destination?.route ?: BorrowLendAppScreen.TOOLS.name
-    )
+    val currentScreenName = rememberSaveable {
+        mutableStateOf(BorrowLendAppScreen.TOOLS)
+    }
     val loginViewModel = viewModel {
         LoginViewModel((context as Activity).application, authService)
     }
@@ -71,8 +70,9 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
 
         Scaffold(
             topBar = {
+                if(currentScreenName.value != BorrowLendAppScreen.LOGIN)
                 BorrowLendAppBar(
-                    currentScreen = currentScreen,
+                    currentScreenName = currentScreenName.value,
                     navController = navController,
                     user
                 )
@@ -88,9 +88,16 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     BorrowLendAppScreen.TOOLS.name,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(innerPadding),
+                enterTransition = {
+                    fadeIn()
+                },
+                exitTransition = {
+                    fadeOut()
+                }
             ) {
                 composable(BorrowLendAppScreen.LOGIN.name) {
+                    currentScreenName.value = BorrowLendAppScreen.LOGIN
                     LoginScreen(
                         Modifier
                             .fillMaxSize(),
@@ -99,11 +106,22 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     )
                 }
                 composable(BorrowLendAppScreen.TOOLS.name) {
-                    RegisteredToolsScreen(user.value)
+                    currentScreenName.value = BorrowLendAppScreen.TOOLS
+                    RegisteredToolsScreen(user.value, navController)
+                }
+
+                composable(
+                    "${BorrowLendAppScreen.TOOL_DETAIL.name}/{toolId}",
+                    arguments = listOf(navArgument("toolId") { type = NavType.StringType })
+                    ) {
+                    currentScreenName.value = BorrowLendAppScreen.TOOL_DETAIL
+                    it.arguments?.getString("toolId")?.let {toolId ->
+                        ToolDetailScreen(toolId, user.value, navController)
+                    }
                 }
 
                 composable(BorrowLendAppScreen.USER.name) {
-
+                    currentScreenName.value = BorrowLendAppScreen.USER
                     user.value?.let {
                         UserProfile(
                             it,
@@ -122,7 +140,7 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
 
 @Composable
 fun BorrowLendAppBar(
-    currentScreen: BorrowLendAppScreen,
+    currentScreenName: BorrowLendAppScreen,
     navController: NavController,
     user: State<User?>
 ) {
@@ -133,11 +151,11 @@ fun BorrowLendAppBar(
         Box(Modifier.fillMaxSize()) {
             Row(Modifier.wrapContentSize(), verticalAlignment = Alignment.CenterVertically) {
                 when {
-                    user.value == null && navController.currentDestination?.route == BorrowLendAppScreen.LOGIN.name -> {
+                    user.value == null && currentScreenName.name == BorrowLendAppScreen.LOGIN.name -> {
                         null
                     }
 
-                    user.value == null && navController.currentDestination?.route == BorrowLendAppScreen.TOOLS.name -> {
+                    user.value == null && currentScreenName.name == BorrowLendAppScreen.TOOLS.name -> {
                         IconButton(onClick = { navController.navigateUp() }) {
                             Icon(
                                 imageVector = Icons.Filled.ArrowBack,
@@ -146,7 +164,7 @@ fun BorrowLendAppBar(
                         }
                     }
 
-                    user.value != null && navController.currentDestination?.route == BorrowLendAppScreen.TOOLS.name -> {
+                    user.value != null && currentScreenName.name == BorrowLendAppScreen.TOOLS.name -> {
                         IconButton(onClick = {
                             navController.navigate(BorrowLendAppScreen.USER.name)
                         }) {
@@ -157,7 +175,7 @@ fun BorrowLendAppBar(
                         }
                     }
 
-                    navController.currentDestination?.route == BorrowLendAppScreen.USER.name -> {
+                    currentScreenName.name == BorrowLendAppScreen.USER.name || currentScreenName.name == BorrowLendAppScreen.TOOL_DETAIL.name-> {
                         if (navController.currentBackStackEntry?.arguments?.getBoolean("isEditingUserProfile") == false)
                             IconButton(onClick = {
                                 navController.navigate(BorrowLendAppScreen.TOOLS.name)
@@ -172,7 +190,7 @@ fun BorrowLendAppBar(
             }
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    currentScreen.title,
+                    currentScreenName.title,
                     Modifier.fillMaxWidth(),
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.W900

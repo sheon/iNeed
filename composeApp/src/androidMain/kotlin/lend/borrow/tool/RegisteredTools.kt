@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.getColor
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.serialization.json.Json
@@ -88,7 +89,8 @@ import java.io.IOException
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun RegisteredToolsScreen(
-    user: User?
+    user: User?,
+    navController: NavController
 ) {
     val application = (LocalContext.current as Activity).application
     val toolsViewModel: ToolsViewModel = viewModel{
@@ -200,7 +202,7 @@ fun RegisteredToolsScreen(
                     key = {
                         it.id
                     }) {
-                    ListItem(it, user, toolsViewModel)
+                    ListItem(it, user, toolsViewModel, navController)
                 }
             }
     }
@@ -245,7 +247,8 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 fun ListItem(
     tool: ToolInApp,
     user: User?,
-    toolsViewModel: ToolsViewModel
+    toolsViewModel: ToolsViewModel,
+    navController: NavController
 ) {
     var tool_tmp: ToolInApp by remember {
         mutableStateOf(tool)
@@ -260,7 +263,10 @@ fun ListItem(
         toolOwner == null || toolOwner.availableAtTheMoment && tool.available
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     Card(
-        onClick = {},
+        onClick = {
+            if (user != null)
+                navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool.id}")
+        },
         modifier = Modifier
             .fillMaxWidth()
             .padding(
@@ -355,7 +361,7 @@ fun ListItem(
                         colors = ButtonDefaults.buttonColors(
                             Color(
                                 LocalContext.current.getColor(
-                                    lend.borrow.tool.shared.R.color.primary
+                                    R.color.primary
                                 )
                             ), Color.White
                         ),

@@ -53,6 +53,15 @@ class ToolsRepository(val application: Application) {
         }
     }
 
+    suspend fun getTool(toolId: String, retrievedData: (ToolInApp) -> Unit, userRepository: UserRepository) {
+            dbTools.document(toolId).let { toolRef ->
+                val tool = toolRef.get().data<ToolInFireStore>()
+                userRepository.getUserInfo(tool.owner)?.let {
+                    val transformedTool = tool.toToolInApp(it, userRepo = userRepository)
+                    retrievedData.invoke(transformedTool.copy(id = toolId))
+                }
+            }
+    }
     suspend fun deleteTools(tools: List<String>) { // Tool IDs
         for (tool in tools) {
             val toolRef = dbTools.document(tool)

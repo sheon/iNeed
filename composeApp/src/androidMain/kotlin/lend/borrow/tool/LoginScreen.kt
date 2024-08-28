@@ -1,6 +1,5 @@
 package lend.borrow.tool
 
-import BorrowLendAppScreen
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +39,6 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import org.jetbrains.compose.resources.ExperimentalResourceApi
 
 @Composable
 fun LoginScreen(modifier: Modifier = Modifier, loginViewModel: LoginViewModel, navController: NavController) {
@@ -63,7 +61,6 @@ fun LoginScreen(modifier: Modifier = Modifier, loginViewModel: LoginViewModel, n
 
 }
 
-@OptIn(ExperimentalResourceApi::class)
 @Composable
 fun LoginScreenContent(
     modifier: Modifier = Modifier,
