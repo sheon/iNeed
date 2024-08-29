@@ -74,7 +74,7 @@ import lend.borrow.tool.shared.R.drawable
 fun ToolDetailScreen(toolId: String, user: User? = null, navController: NavController) {
     val application = (LocalContext.current as Activity).application
     val toolsViewModel: ToolsViewModel = viewModel {
-        ToolsViewModel(application)
+        ToolsViewModel(application, user)
     }
     var favorites: MutableState<Boolean> = rememberSaveable {
         mutableStateOf(toolsViewModel.favorites.value.contains(toolId))

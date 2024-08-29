@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import lend.borrow.tool.utility.getCurrentLocation
 
-class ToolsViewModel(private val application: Application) : BaseViewModel() {
+class ToolsViewModel(private val application: Application, val user: User?) : BaseViewModel() {
 
     var fetchingToolsInProgress = MutableStateFlow(false)
     var fetchingLocationInProgress = MutableStateFlow(false)
@@ -54,13 +54,14 @@ class ToolsViewModel(private val application: Application) : BaseViewModel() {
             callback(lat, long)
         }
     }
-    fun getToolsFromRemote(location: GeoPoint? = null)  {
+    fun getToolsFromRemote(location: GeoPoint? = null, isOwnTools: Boolean = false)  {
         anonymousUserLocation = location
         launchWithCatchingException {
             if (!fetchingToolsInProgress.value) {
+                _data.clear()
                 fetchingToolsInProgress.value = true
                 toolsRepo.getAvailableTools(location, {
-                    _data.addAll(it)
+                    _data.addAll(it.filter { user == null || user.ownTools.contains(it.id) == isOwnTools })
                     data.value = _data
                     fetchingToolsInProgress.value = false
                 }, userRepo)

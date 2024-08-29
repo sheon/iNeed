@@ -10,7 +10,6 @@ import dev.gitlive.firebase.firestore.GeoPoint
 import dev.gitlive.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import lend.borrow.tool.utility.distanceToOtherPoint
 import kotlin.math.cos
@@ -150,12 +149,10 @@ class UserRepository(val application: Application) {
                         "latitude".lessThanOrEqualTo(corners[1].latitude)
                     }.get()
                 queryResult.documents.forEach {
-                    if ((it.id != currentUser.first()?.id)) {
-                        val tmpUser = it.data<User>()
-                        tmpUser.geoPoint?.let {
-                            if(it.distanceToOtherPoint(availableLocation) <= searchDistance)
-                                tempListOfOwnerNearBy.add(tmpUser)
-                        }
+                    val tmpUser = it.data<User>()
+                    tmpUser.geoPoint?.let {
+                        if (it.distanceToOtherPoint(availableLocation) <= searchDistance)
+                            tempListOfOwnerNearBy.add(tmpUser)
                     }
                 }
                 _nearByOwners.addAll(tempListOfOwnerNearBy)

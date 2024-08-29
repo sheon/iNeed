@@ -33,6 +33,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Tab
+import androidx.compose.material.TabRow
+import androidx.compose.material.TabRowDefaults
+import androidx.compose.material.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -94,19 +98,10 @@ fun RegisteredToolsScreen(
 ) {
     val application = (LocalContext.current as Activity).application
     val toolsViewModel: ToolsViewModel = viewModel{
-        ToolsViewModel(application)
+        ToolsViewModel(application, user = user)
     }
 
-    val data by toolsViewModel.data.collectAsState()
 
-    val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
-    val anythingInProgress by toolsViewModel.anythingInProgress.collectAsState(false)
-
-    var iNeedInput by rememberSaveable { mutableStateOf("") }
-
-    val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
-        toolsViewModel.refreshData()
-    })
 
     val requestPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission())
@@ -132,18 +127,38 @@ fun RegisteredToolsScreen(
             }
         }
 
+
+    ToolsList(toolsViewModel, navController, user)
+
+
+
+}
+
+
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController, user: User?) {
+    val data by toolsViewModel.data.collectAsState()
+
+    val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
+    val anythingInProgress by toolsViewModel.anythingInProgress.collectAsState(false)
+
+    var iNeedInput by rememberSaveable { mutableStateOf("") }
+
+    val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
+        toolsViewModel.refreshData()
+    })
     Column(
         Modifier
             .fillMaxSize()
-            .padding(top = 10.dp)
             .pullRefresh(pullRefreshState),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (user == null)
             Box(modifier = Modifier
-                .padding(horizontal = 10.dp)
+                .padding(10.dp)
                 .background(Color.Yellow)
-                .padding(horizontal = 10.dp)
+                .padding(10.dp)
             ) {
                 Text(
                     text = "As a guest, you can only browse through the list of tools available in 2km radius around your current location. You won't be able to borrow them or like them as your favorites. The search function only looks through the names and provided tags. To benefit from all features you need to sign in as a registered user.",
@@ -153,6 +168,8 @@ fun RegisteredToolsScreen(
                     fontStyle = FontStyle.Italic
                 )
             }
+        else
+            TabScreen(toolsViewModel)
 
         Text(
             text = "I need",
@@ -182,30 +199,31 @@ fun RegisteredToolsScreen(
                 }
             }
         )
-        if (anythingInProgress)
-            Box(modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .wrapContentSize(),
-                    color = Color(getColor(LocalContext.current, R.color.primary))
-                )
+
+        LazyColumn(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .background(Color.LightGray)
+        ) {
+            items(data,
+                key = {
+                    it.id
+                }) {
+                ListItem(it, user, toolsViewModel, navController)
             }
-        else
-            LazyColumn(
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight()
-                    .background(Color.LightGray)
-            ) {
-                items(data,
-                    key = {
-                        it.id
-                    }) {
-                    ListItem(it, user, toolsViewModel, navController)
-                }
-            }
+        }
     }
+
+    if (anythingInProgress)
+        Box(modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .wrapContentSize(),
+                color = Color(getColor(LocalContext.current, R.color.primary))
+            )
+        }
 }
 
 fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {
@@ -263,17 +281,16 @@ fun ListItem(
         toolOwner == null || toolOwner.availableAtTheMoment && tool.available
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     Card(
-        onClick = {
-            if (user != null)
-                navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool.id}")
-        },
         modifier = Modifier
             .fillMaxWidth()
             .padding(
                 15.dp
-            ),
+            )
+            .clickable(user != null){
+                if (user != null)
+                    navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool.id}")
+            },
         colors = CardDefaults.cardColors(Color.White),
-        enabled = toolAvailability,
         elevation = CardDefaults.cardElevation(if (tool.available) 5.dp else 0.dp)
     ) {
         Column(
@@ -394,4 +411,41 @@ fun ListItem(
         }
     }
 }
+
+@Composable
+fun TabScreen(toolsViewModel: ToolsViewModel)   {
+    var tabIndex by remember { mutableStateOf(0) }
+
+    val tabs = listOf("Others", "Yours")
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        TabRow(
+            selectedTabIndex = tabIndex,
+            backgroundColor = Color.White,
+            indicator = { tabPositions ->
+                if (tabIndex < tabPositions.size) {
+                    TabRowDefaults.Indicator(
+                        modifier = Modifier.tabIndicatorOffset(tabPositions[tabIndex]),
+                        color = Color(getColor(LocalContext.current, R.color.primary))
+                    )
+                }
+            }
+        ) {
+            tabs.forEachIndexed { index, title ->
+                Tab(text = { Text(title) },
+                    selected = tabIndex == index,
+                    selectedContentColor = Color.Yellow,
+                    onClick = {
+                        if(tabIndex != index) {
+                            toolsViewModel.getToolsFromRemote(isOwnTools = index == 1)
+                            tabIndex = index
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+
 
