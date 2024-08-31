@@ -106,6 +106,12 @@ fun UserProfile(
                 if (isEditingUserProfile.not()) {
                     Switch(checked = userAvailability, onCheckedChange = {
                         userAvailability = it
+                        userViewModel.updateUserInfo(
+                            signedInUser.copy(
+                               availableAtTheMoment = it
+                            ),
+                            signedInUser
+                        )
                     })
                     IconButton(onClick = {
                         isEditingUserProfile = !isEditingUserProfile

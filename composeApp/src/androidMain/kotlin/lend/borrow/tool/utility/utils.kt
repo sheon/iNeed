@@ -41,6 +41,10 @@ suspend fun ToolInFireStore.toToolInApp(owner: User, userRepo: UserRepository): 
     return ToolInApp(name, "", description, imageReferences, imageUrls, tags, available, owner, borrower?.let { userRepo.getUserInfo(it) })
 }
 
+fun ToolInApp.toToolInFireStore(): ToolInFireStore { // This may be avoided if we have one data class for tool.
+    return ToolInFireStore(name, description, imageReferences, imageUrls, tags, available, owner.id, borrower?.id )
+}
+
 fun GeoPoint.distanceToOtherPoint(point: GeoPoint): Float {
     val user1 = Location("user1")
     user1.latitude = latitude

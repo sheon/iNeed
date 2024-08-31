@@ -116,7 +116,7 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     ) {
                     currentScreenName.value = BorrowLendAppScreen.TOOL_DETAIL
                     it.arguments?.getString("toolId")?.let {toolId ->
-                        ToolDetailScreen(toolId, user.value, navController)
+                        ToolDetailScreen(toolId, user.value)
                     }
                 }
 
@@ -156,7 +156,7 @@ fun BorrowLendAppBar(
                     }
 
                     user.value == null && currentScreenName.name == BorrowLendAppScreen.TOOLS.name -> {
-                        IconButton(onClick = { navController.navigateUp() }) {
+                        IconButton(onClick = { navController.popBackStack() }) {
                             Icon(
                                 imageVector = Icons.Filled.ArrowBack,
                                 contentDescription = "Back"
@@ -178,7 +178,7 @@ fun BorrowLendAppBar(
                     currentScreenName.name == BorrowLendAppScreen.USER.name || currentScreenName.name == BorrowLendAppScreen.TOOL_DETAIL.name-> {
                         if (navController.currentBackStackEntry?.arguments?.getBoolean("isEditingUserProfile") == false)
                             IconButton(onClick = {
-                                navController.navigate(BorrowLendAppScreen.TOOLS.name)
+                                navController.popBackStack()
                             }) {
                                 Icon(
                                     imageVector = Icons.Filled.ArrowBack,

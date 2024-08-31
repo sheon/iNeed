@@ -45,7 +45,7 @@ fun LoginScreen(modifier: Modifier = Modifier, loginViewModel: LoginViewModel, n
 
     val uiState by loginViewModel.uiState.collectAsState()
     val isProcessing by loginViewModel.isProcessing.collectAsState()
-    val loginError by loginViewModel.loginErrorMessage.collectAsState()
+    val loginError by loginViewModel.latestErrorMessage.collectAsState()
 
 
     LoginScreenContent(

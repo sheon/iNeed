@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -49,6 +50,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
@@ -68,6 +70,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.getColor
@@ -130,28 +133,18 @@ fun RegisteredToolsScreen(
 
     ToolsList(toolsViewModel, navController, user)
 
-
-
 }
 
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController, user: User?) {
-    val data by toolsViewModel.data.collectAsState()
 
-    val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
     val anythingInProgress by toolsViewModel.anythingInProgress.collectAsState(false)
 
-    var iNeedInput by rememberSaveable { mutableStateOf("") }
-
-    val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
-        toolsViewModel.refreshData()
-    })
     Column(
         Modifier
-            .fillMaxSize()
-            .pullRefresh(pullRefreshState),
+            .fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (user == null)
@@ -169,50 +162,8 @@ fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController, user
                 )
             }
         else
-            TabScreen(toolsViewModel)
+            TabScreen(toolsViewModel, navController, user)
 
-        Text(
-            text = "I need",
-            modifier = Modifier
-                .padding(horizontal = 10.dp)
-                .padding(horizontal = 10.dp)
-        )
-        OutlinedTextField(
-            value = iNeedInput,
-            onValueChange = {
-                iNeedInput = it
-                if (it.isBlank())
-                    toolsViewModel.filterData(iNeedInput)
-            },
-            modifier = Modifier
-                .padding(horizontal = 10.dp)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(300.dp),
-            leadingIcon = {
-                IconButton(
-                    onClick = {
-                        toolsViewModel.filterData(iNeedInput)
-                    }
-                ) {
-                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
-                }
-            }
-        )
-
-        LazyColumn(
-            Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .background(Color.LightGray)
-        ) {
-            items(data,
-                key = {
-                    it.id
-                }) {
-                ListItem(it, user, toolsViewModel, navController)
-            }
-        }
     }
 
     if (anythingInProgress)
@@ -276,17 +227,18 @@ fun ListItem(
     }
     favorites.addAll(user?.favoriteTools ?: emptyList())
 
+    val userOwnsThisTool = tool.owner.id == user?.id
     val toolOwner = tool.owner
-    val toolAvailability: Boolean =
-        toolOwner == null || toolOwner.availableAtTheMoment && tool.available
+    val toolAvailability: Boolean = userOwnsThisTool || toolOwner.availableAtTheMoment && tool.available
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .wrapContentHeight()
             .padding(
                 15.dp
             )
-            .clickable(user != null){
+            .clickable(user != null) {
                 if (user != null)
                     navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool.id}")
             },
@@ -328,8 +280,8 @@ fun ListItem(
             Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
             Text(text = tool.name, modifier = Modifier.padding(5.dp))
             Text(text = "Description: ", fontWeight = FontWeight.Bold)
-            Text(text = tool.description, modifier = Modifier.padding(5.dp))
-            if (tool.tags?.isNotEmpty() == true)
+            Text(text = tool.description,  maxLines = 3,modifier = Modifier.padding(5.dp), overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Justify)
+            if (tool.tags.isNotEmpty())
                 Spacer(modifier = Modifier.height(11.dp))
             FlowRow(
                 modifier = Modifier
@@ -339,7 +291,7 @@ fun ListItem(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                tool.tags?.forEach { tag ->
+                tool.tags.forEach { tag ->
                     Box(
                         modifier = Modifier
                             .wrapContentSize()
@@ -361,60 +313,73 @@ fun ListItem(
                 }
             }
             user?.let {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Button(
-                        enabled = tool.available,
-                        modifier = Modifier.alpha(toolAlpha),
-                        onClick = {
-                            if (toolAvailability) {
-                                tool.available = false
-                                tool_tmp = tool
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            Color(
-                                LocalContext.current.getColor(
-                                    R.color.primary
-                                )
-                            ), Color.White
-                        ),
-                        shape = RoundedCornerShape(5.dp)
+                if (it.id != tool.owner.id) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("May I borrow this item?")
-                    }
-                    Image(
-                        painterResource(if (favorites.contains(tool.id)) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
-                        contentDescription = "",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .clickable {
-                                if (favorites.contains(tool.id)) { // This should be revised and use the single source of the truth.
-                                    user.favoriteTools.remove(tool.id)
-                                    toolsViewModel.updateUserFavoriteTools(it)
-                                    favorites.remove(tool.id)
-                                } else {
-                                    user.favoriteTools.add(tool.id)
-                                    toolsViewModel.updateUserFavoriteTools(it)
-                                    favorites.add(tool.id)
-
+                        Button(
+                            enabled = tool.available,
+                            modifier = Modifier.alpha(toolAlpha),
+                            onClick = {
+                                if (toolAvailability) {
+                                    //tool.available = false
+                                    tool_tmp = tool
                                 }
-                            }
-                            .align(Alignment.CenterVertically)
-                    )
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                Color(
+                                    LocalContext.current.getColor(
+                                        R.color.primary
+                                    )
+                                ), Color.White
+                            ),
+                            shape = RoundedCornerShape(5.dp)
+                        ) {
+                            Text("May I borrow this item?")
+                        }
+                        Image(
+                            painterResource(if (favorites.contains(tool.id)) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
+                            contentDescription = "",
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .clickable {
+                                    if (favorites.contains(tool.id)) { // This should be revised and use the single source of the truth.
+                                        user.favoriteTools.remove(tool.id)
+                                        toolsViewModel.updateUserFavoriteTools(it)
+                                        favorites.remove(tool.id)
+                                    } else {
+                                        user.favoriteTools.add(tool.id)
+                                        toolsViewModel.updateUserFavoriteTools(it)
+                                        favorites.add(tool.id)
 
+                                    }
+                                }
+                                .align(Alignment.CenterVertically)
+                        )
+
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun TabScreen(toolsViewModel: ToolsViewModel)   {
-    var tabIndex by remember { mutableStateOf(0) }
+fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController, user: User?)   {
+    val data by toolsViewModel.data.collectAsState()
+
+    val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
+
+    var iNeedInput by rememberSaveable { mutableStateOf("") }
+
+    var tabIndex by rememberSaveable { mutableStateOf(0) }
+
+    val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
+        toolsViewModel.refreshData(tabIndex == 1)
+    })
 
     val tabs = listOf("Others", "Yours")
 
@@ -437,11 +402,69 @@ fun TabScreen(toolsViewModel: ToolsViewModel)   {
                     selectedContentColor = Color.Yellow,
                     onClick = {
                         if(tabIndex != index) {
-                            toolsViewModel.getToolsFromRemote(isOwnTools = index == 1)
+                            toolsViewModel.getToolsFromRemote(isOwnerOfTools = index == 1)
                             tabIndex = index
                         }
                     }
                 )
+            }
+        }
+        val backgroundColor = Color(LocalContext.current.resources.getColor(R.color.primary))
+        Spacer(modifier = Modifier.size(10.dp))
+
+        OutlinedTextField(
+            value = iNeedInput, onValueChange = {
+                iNeedInput = it
+                if (it.isBlank())
+                    toolsViewModel.filterData(iNeedInput)
+            }, modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(300.dp),
+            trailingIcon = {
+                IconButton(
+                    onClick = {
+                        toolsViewModel.filterData(iNeedInput)
+                    }
+                ) {
+                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
+                }
+            },
+            label = {
+                Text(text = "I need")
+            },
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = backgroundColor,
+                unfocusedIndicatorColor = backgroundColor.copy(alpha = 0.3f),
+                unfocusedContainerColor = backgroundColor.copy(alpha = 0.2f),
+                focusedContainerColor = backgroundColor.copy(alpha = 0.2f),
+                unfocusedTextColor = backgroundColor,
+                focusedTextColor = backgroundColor,
+                focusedLabelColor = backgroundColor,
+                unfocusedLabelColor = backgroundColor
+            )
+        )
+
+        Spacer(modifier = Modifier.size(10.dp))
+
+        Spacer(modifier = Modifier
+            .height(1.dp)
+            .fillMaxWidth()
+            .background(backgroundColor))
+
+        LazyColumn(
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .pullRefresh(pullRefreshState)
+                .background(backgroundColor.copy(alpha = 0.2f))
+        ) {
+            this.
+            items(data,
+                key = {
+                    it.id
+                }) {
+                ListItem(it, user, toolsViewModel, navController)
             }
         }
     }

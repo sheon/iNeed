@@ -5,9 +5,9 @@ import kotlinx.serialization.Serializable
 data class ToolInFireStore(
     val name: String,
     val description: String,
-    val imageReferences: MutableList<String>, // Document references for Images stored on Firebase storage
-    val imageUrls: MutableList<String>, // Downloadable Urls for Images stored on Firebase storage
-    val tags: MutableList<String>?,
+    val imageReferences: List<String>, // Document references for Images stored on Firebase storage
+    val imageUrls: List<String>, // Downloadable Urls for Images stored on Firebase storage
+    val tags: List<String> = emptyList(),
     var available: Boolean = true,
     val owner: String, // User Id
     var borrower: String? = null, // User Id
@@ -20,14 +20,16 @@ data class ToolInApp(
     val name: String,
     var id: String,
     val description: String,
-    val imageReferences: MutableList<String>, // Document references for Images stored on Firebase storage
-    val imageUrls: MutableList<String>, // Downloadable Urls for Images stored on Firebase storage
-    val tags: MutableList<String>?,
-    var available: Boolean = true,
-    var owner: User?, // To avoid requesting FireStore everytime the item is loaded on a view
-    var borrower: User? = null, // To avoid requesting FireStore everytime the item is loaded on a view
+    val imageReferences: List<String>, // Document references for Images stored on Firebase storage
+    val imageUrls: List<String>, // Downloadable Urls for Images stored on Firebase storage
+    val tags: List<String> = emptyList(),
+    val available: Boolean = true,
+    val owner: User, // To avoid requesting FireStore everytime the item is loaded on a view
+    val borrower: User? = null, // To avoid requesting FireStore everytime the item is loaded on a view
+    val instruction: String = "dnfvöjknfdkjövndklfjnbökjnvsfgökjnbösdkjnfbökndflmnflkbnlijnfblkdnflbnldfnvöaeälsjdvädaflökväöldf'äå'pldfgopkergmkntrugnöednb.va,md .mxv andfökfjkngvörekngömndföm, bvmfdn bjn"
 ) {
-    constructor() : this("", "", "", mutableListOf(), mutableListOf(), mutableListOf(), available = false, null, null)
+    val newImages = mutableListOf<String>()
+    constructor() : this("", "", "", mutableListOf(), mutableListOf(), mutableListOf(), available = false, User(), null)
 }
 
 

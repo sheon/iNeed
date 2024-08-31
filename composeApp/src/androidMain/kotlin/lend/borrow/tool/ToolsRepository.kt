@@ -14,6 +14,7 @@ import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.storage.File
 import dev.gitlive.firebase.storage.storage
 import lend.borrow.tool.utility.toToolInApp
+import lend.borrow.tool.utility.toToolInFireStore
 import java.util.UUID
 
 
@@ -88,4 +89,23 @@ class ToolsRepository(val application: Application) {
         return dbTools.add(tempTool)
     }
 
+    suspend fun updateToolDetail(tool: ToolInApp, callBack: () -> Unit) {
+        val uploadedImagesDownloadableUrl = tool.imageUrls.toMutableList()
+        val uploadedImagesStoragePath = tool.imageReferences.toMutableList()
+        tool.newImages.forEach { imageUUID ->
+            val imageNameWithSuffix = "${UUID.randomUUID()}.png"
+            val path = "tools/$imageNameWithSuffix"
+            val imageRef = storage.reference(path)
+            imageRef.putFile(File(Uri.parse(imageUUID)))
+            uploadedImagesDownloadableUrl.add(imageRef.getDownloadUrl())
+            uploadedImagesStoragePath.add(path)
+        }
+        val tempTool = tool.copy(imageReferences = uploadedImagesStoragePath, imageUrls = uploadedImagesDownloadableUrl).toToolInFireStore()
+        dbTools.document(tool.id).update(tempTool)
+        callBack()
+    }
+    suspend fun deleteTool(toolId: String, progressCallBack: () -> Unit) {
+        dbTools.document(toolId).delete()
+        progressCallBack()
+    }
 }

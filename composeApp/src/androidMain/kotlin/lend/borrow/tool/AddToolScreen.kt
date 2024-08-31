@@ -218,7 +218,7 @@ fun CustomDialogWithResult(
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     TextButton(onClick = {
-                        onPositiveClick(toolName, toolDescription, toolTags?.split(",") ?: emptyList(), capturedImageUriList.map { it.toString() }.toList())
+                        onPositiveClick(toolName, toolDescription, toolTags?.replace(" ", "")?.split(",")?.filterNot { it == "" } ?: emptyList(), capturedImageUriList.map { it.toString() }.toList())
                     }) {
                         Text(text = "OK")
                     }
