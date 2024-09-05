@@ -1,9 +1,14 @@
 package lend.borrow.tool
 
-import ToolInApp
+import ToolDetailUiState
 import User
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -39,12 +45,14 @@ import androidx.compose.material.IconButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,6 +85,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import lend.borrow.tool.shared.R
 import lend.borrow.tool.shared.R.drawable
+import lend.borrow.tool.utility.CustomDialogWithResult
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -167,7 +176,7 @@ fun ToolDetailScreen(toolId: String, user: User? = null) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun StaticToolInfoScreen(chosenTool: ToolInApp, user: User?, toolDetailViewModel: ToolDetailViewModel, userOwnThisTool: Boolean = false) {
+fun StaticToolInfoScreen(chosenTool: ToolDetailUiState, user: User?, toolDetailViewModel: ToolDetailViewModel, userOwnThisTool: Boolean = false) {
     var zoomIn: String? by remember {
         mutableStateOf(null)
     }
@@ -175,7 +184,7 @@ fun StaticToolInfoScreen(chosenTool: ToolInApp, user: User?, toolDetailViewModel
         mutableStateOf(toolDetailViewModel.favorites.value.contains(chosenTool.id))
     }
     val toolOwner = chosenTool.owner
-    val toolAvailability: Boolean = userOwnThisTool || toolOwner.availableAtTheMoment && chosenTool.available
+    val toolAvailability: Boolean = userOwnThisTool || toolOwner.availableAtTheMoment && chosenTool.isAvailable
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
 
     Column(
@@ -190,7 +199,7 @@ fun StaticToolInfoScreen(chosenTool: ToolInApp, user: User?, toolDetailViewModel
                     .height(200.dp),
                 horizontalArrangement = Arrangement.Center
             ) {
-                items(chosenTool.imageUrls) {
+                items(chosenTool.imageUrlsRefMap.keys.toList()) {
                     Box(
                         modifier = Modifier
                             .fillMaxHeight()
@@ -219,7 +228,7 @@ fun StaticToolInfoScreen(chosenTool: ToolInApp, user: User?, toolDetailViewModel
         Text(text = chosenTool.description, modifier = Modifier.padding(5.dp))
         Text(text = "Instruction: ", fontWeight = FontWeight.Bold)
         Text(text = chosenTool.instruction, modifier = Modifier.padding(5.dp))
-        if (chosenTool.tags.isNotEmpty())
+        if (chosenTool.tags?.isNotEmpty() == true)
             Spacer(modifier = Modifier.height(11.dp))
         FlowRow(
             modifier = Modifier
@@ -229,7 +238,7 @@ fun StaticToolInfoScreen(chosenTool: ToolInApp, user: User?, toolDetailViewModel
             verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            chosenTool.tags.forEach { tag ->
+            chosenTool.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
                 Box(
                     modifier = Modifier
                         .wrapContentSize()
@@ -241,7 +250,7 @@ fun StaticToolInfoScreen(chosenTool: ToolInApp, user: User?, toolDetailViewModel
                     Alignment.Center
                 ) {
                     Text(
-                        text = tag.trim(),
+                        text = tag,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(horizontal = 5.dp),
                         color = Color.White
@@ -257,7 +266,7 @@ fun StaticToolInfoScreen(chosenTool: ToolInApp, user: User?, toolDetailViewModel
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Button(
-                        enabled = chosenTool.available,
+                        enabled = chosenTool.isAvailable,
                         modifier = Modifier.alpha(toolAlpha),
                         onClick = {
 //                        if (toolAvailability) {
@@ -306,19 +315,24 @@ fun StaticToolInfoScreen(chosenTool: ToolInApp, user: User?, toolDetailViewModel
 
 @Composable
 fun EditingToolInfoScreen(
-    chosenTool: ToolInApp,
+    chosenTool: ToolDetailUiState,
     toolDetailViewModel: ToolDetailViewModel
 ) {
     val ownerToolDetailUi by toolDetailViewModel.toolDetailUiState.collectAsState()
+    val takingPics by toolDetailViewModel.takingAPicture.collectAsState()
     var zoomIn: String? by remember {
         mutableStateOf(null)
     }
+    var deletingAPic: String? by remember {
+        mutableStateOf(null)
+    }
     val numberOfImagesForTool = 5
+    val scrollState = rememberScrollState()
     Column(
         Modifier
             .fillMaxWidth()
             .padding(15.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scrollState)
     ) {
         AnimatedVisibility(true) {
             LazyRow(
@@ -332,9 +346,9 @@ fun EditingToolInfoScreen(
                         modifier = Modifier
                             .fillMaxHeight()
                             .padding(5.dp),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.TopStart
                     ) {
-                        ownerToolDetailUi.images.getOrNull(it).let {
+                        ownerToolDetailUi.imageUrlsRefMap.keys.toList().getOrNull(it).let {
                             Box(modifier = Modifier.size(150.dp, 200.dp)) {
                                 AsyncImage(
                                     model = it,
@@ -342,7 +356,10 @@ fun EditingToolInfoScreen(
                                         .fillMaxSize()
                                         .background(Color.LightGray)
                                         .clickable {
-                                            if (it != null) zoomIn = it
+                                            if (it != null)
+                                                zoomIn = it
+                                            else
+                                                toolDetailViewModel.startCamera(true)
                                         },
                                     alpha = if (it == null) 0.3f else 1f,
                                     placeholder = painterResource(id = lend.borrow.tool.R.drawable.baseline_image_24),
@@ -350,6 +367,23 @@ fun EditingToolInfoScreen(
                                     contentDescription = "",
                                     contentScale = ContentScale.Fit
                                 )
+                                it?.let {
+                                    IconButton(onClick = {
+                                        deletingAPic = ownerToolDetailUi.imageUrlsRefMap[it]
+                                    }) {
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(CircleShape)
+                                                .background(Color.White)
+                                                .wrapContentSize()
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Delete,
+                                                contentDescription = "Delete image"
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -424,7 +458,9 @@ fun EditingToolInfoScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Button(
-                modifier = Modifier.fillMaxWidth(), onClick = {
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
+                onClick = {
                     toolDetailViewModel.discardChangesInToolDetail(chosenTool)
                 }, colors = ButtonDefaults.buttonColors(
                     Color.Gray, Color.White
@@ -434,6 +470,7 @@ fun EditingToolInfoScreen(
             }
             Button(
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
                 onClick = {
                     toolDetailViewModel.saveChangesInToolDetail()
                 }, colors = ButtonDefaults.buttonColors(
@@ -444,8 +481,9 @@ fun EditingToolInfoScreen(
             }
             Button(
                 modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(10.dp),
                 onClick = {
-                    toolDetailViewModel.deleteTool()
+                    toolDetailViewModel.deleteTool(ownerToolDetailUi)
                 }, colors = ButtonDefaults.buttonColors(
                     Color.Red, Color.White
                 )
@@ -459,6 +497,60 @@ fun EditingToolInfoScreen(
             zoomIn = null
         }
     }
+    deletingAPic?.let {
+        CustomDialogWithResult(onDismiss = { deletingAPic = null}) {
+            Card(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)) {
+                    Text("Are you sure you want to delete this picture?", Modifier.padding(10.dp))
+                    Spacer(modifier = Modifier.size(10.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            modifier = Modifier
+                                .wrapContentWidth()
+                                .padding(horizontal = 10.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            onClick = {
+                                deletingAPic = null
+                            }, colors = ButtonDefaults.buttonColors(
+                                Color.Gray, Color.White
+                            )
+                        ) {
+                            Text(text = AnnotatedString("Cancel"))
+                        }
+
+                        Button(
+                            modifier = Modifier
+                                .wrapContentWidth()
+                                .padding(horizontal = 10.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            onClick = {
+                                toolDetailViewModel.onToolImageDeleted(it)
+                                deletingAPic = null
+                            }, colors = ButtonDefaults.buttonColors(
+                                Color.Red, Color.White
+                            )
+                        ) {
+                            Text(text = AnnotatedString("I am sure"))
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+
+
+    if (takingPics)
+        TakePictureOfTool(toolDetailViewModel)
+
 }
 @Composable
 fun ZoomInImage(model: String, contentDescription: String? = null, onDismiss: () -> Unit) {
@@ -482,7 +574,6 @@ fun ZoomInImage(model: String, contentDescription: String? = null, onDismiss: ()
                         size = it.toSize()
                     },
                 contentAlignment = Alignment.TopEnd) {
-                val angle by remember { mutableStateOf(0f) }
                 var zoom by remember { mutableStateOf(1f) }
                 var offset by remember { mutableStateOf(Offset.Zero) }
 
@@ -528,6 +619,39 @@ fun ZoomInImage(model: String, contentDescription: String? = null, onDismiss: ()
                 }
             }
         }
+    }
+}
+
+@Composable
+fun TakePictureOfTool(toolDetailViewModel: ToolDetailViewModel) {
+    val context = LocalContext.current
+    lateinit var uri: Uri
+
+    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {
+        if (it) {
+            toolDetailViewModel.onToolImageAdded(uri.toString())
+        }
+        toolDetailViewModel.startCamera(false)
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        if (it) {
+            uri = context.createImageFile()
+            cameraLauncher.launch(uri)
+        }
+    }
+    val permissionCheckResult =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+    if (permissionCheckResult == PackageManager.PERMISSION_GRANTED) {
+        uri = context.createImageFile()
+        SideEffect {
+            cameraLauncher.launch(uri)
+        }
+    } else {
+        // Request a permission
+        permissionLauncher.launch(Manifest.permission.CAMERA)
     }
 }
 

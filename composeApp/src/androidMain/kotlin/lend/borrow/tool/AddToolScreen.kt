@@ -39,24 +39,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import lend.borrow.tool.utility.CustomDialogWithResult
 import java.io.File
 import java.util.Objects
 import java.util.UUID
 
+
 @Composable
-fun CustomDialogWithResult(
-    onDismiss: () -> Unit,
-    onNegativeClick: () -> Unit,
-    onPositiveClick: (String, String, List<String>, List<String>) -> Unit
-) {
-    Dialog(onDismissRequest = onDismiss,
-        DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false)
-    ) {
+fun AddToolDialog(onDismiss: () -> Unit,
+                  onNegativeClick: () -> Unit,
+                  onPositiveClick: (String, String, List<String>, List<String>) -> Unit) {
+    CustomDialogWithResult(onDismiss) {
         val context = LocalContext.current
         var toolName by rememberSaveable { mutableStateOf("") }
         var toolDescription by rememberSaveable { mutableStateOf("") }

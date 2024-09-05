@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="bad_address_message">The address you provided is not valid. Please check the address or provide the closest valid address to you.</string>
-    <string name="provide_address_message">You need to fill in your address so other users nearby can find the tools you can lend them. Your address is not visible to other users and only used to proximate your location.</string>
+    <string name="provide_address_message">You need to fill in your address so your tools are visible to other users nearby. Your address is not visible to other users and only used to proximate your location.</string>
     <string name="save_user_profile_data">Save user profile data.</string>
-    <string name="ok">Ok</string>
+    <string name="ok">OK</string>
     <string name="delete">Delete</string>
     <string name="uploading">Uploading</string>
     <string name="updating">Updating</string>
     <string name="saving">Saving</string>
     <string name="fetching">Fetching</string>
+    <string name="guest_warning_message">As a guest, you can only browse through the list of tools available in 2km radius around your current location. You won\'t be able to borrow them or like them as your favorites. The search function only looks through the names and provided tags. To benefit from all features you need to sign up as a registered user.</string>
+    <string name="no_description">No description</string>
+    <string name="no_instruction">No instruction</string>
 </resources>

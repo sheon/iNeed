@@ -1,6 +1,6 @@
 package lend.borrow.tool
 
-import ToolInApp
+import ToolDetailUiState
 import User
 import android.app.Application
 import androidx.lifecycle.viewModelScope
@@ -10,12 +10,16 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import lend.borrow.tool.utility.toToolDetailUi
+import lend.borrow.tool.utility.toToolInApp
 
 class ToolDetailViewModel(private val application: Application, val toolId: String) : BaseViewModel() {
     var isSavingChanges = MutableStateFlow(false)
     val isFetchingTool = MutableStateFlow(false)
 
-    private lateinit var _toolDetailUiState: MutableStateFlow<OwnerToolDetailUi>
+    private lateinit var _toolDetailUiState: MutableStateFlow<ToolDetailUiState>
+    private val _takingAPicture = MutableStateFlow(false)
+    val takingAPicture = _takingAPicture
     val toolDetailUiState by lazy {
         _toolDetailUiState.asStateFlow()
     }
@@ -29,7 +33,7 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     val favorites: MutableStateFlow<List<String>>
         get() = MutableStateFlow( userRepo.currentUser.value?.favoriteTools?: emptyList())
 
-    var tool = MutableStateFlow<ToolInApp?>(null)
+    var tool = MutableStateFlow<ToolDetailUiState?>(null)
     var isEditingToolInfo = MutableStateFlow(false)
     init {
         viewModelScope.launch {
@@ -59,6 +63,9 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
         }
     }
 
+    fun startCamera(start: Boolean) {
+        _takingAPicture.value = start
+    }
 
     private fun getTool(toolId: String) {
         if (!isFetchingTool.value)
@@ -67,8 +74,10 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
                 try {
                     _latestErrorMessage.value = null
                     toolsRepo.getTool(toolId, {
-                        tool.value = it
-                        initiateOwnerToolDetailEditingUiState(it)
+                        it.toToolDetailUi(application).also {toolDetailUiState ->
+                            tool.value = toolDetailUiState
+                        initiateOwnerToolDetailEditingUiState(toolDetailUiState)
+                        }
                     }, userRepo)
                 } catch (e: Exception) {
                     _latestErrorMessage.value = "Couldn't find your tool"
@@ -92,22 +101,40 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     fun onToolTagsChanged(newValue: String){
         _toolDetailUiState.update { it.copy(tags = newValue) }
     }
-    fun onToolImagesChanged(newValue: List<String>){
-        _toolDetailUiState.update { it.copy(images = newValue) }
+    fun onToolImageAdded(newValue: String){
+        _toolDetailUiState.update {
+            it.newImages.add(newValue)
+            it.copy()
+        }
+    }
+    fun onToolImageDeleted(newValue: String){
+        _toolDetailUiState.update { affectedTool ->
+            val tmpImages = affectedTool.images.toMutableMap()
+            tmpImages.remove(newValue)?.let {
+                affectedTool.deletedImages.add(newValue)
+            }
+            affectedTool.newImages.remove(newValue)
+            val newToolUi = affectedTool.copy(images = tmpImages)
+            newToolUi.newImages.addAll(affectedTool.newImages)
+            newToolUi.deletedImages.addAll(affectedTool.deletedImages)
+            newToolUi
+
+        }
     }
 
-    fun initiateOwnerToolDetailEditingUiState(tool: ToolInApp){
+    fun initiateOwnerToolDetailEditingUiState(tool: ToolDetailUiState){
         if (::_toolDetailUiState.isInitialized)
-            _toolDetailUiState.update { OwnerToolDetailUi(tool.id, tool.name, tool.description, tool.instruction, tool.imageUrls, tool.tags.joinToString(), tool.owner, tool.borrower, tool.available, tool) }
+            _toolDetailUiState.update { tool }
         else
-            _toolDetailUiState = MutableStateFlow(OwnerToolDetailUi(tool.id, tool.name, tool.description, tool.instruction, tool.imageUrls, tool.tags.joinToString(), tool.owner, tool.borrower, tool.available, tool))
+            _toolDetailUiState = MutableStateFlow(tool)
     }
 
-    fun deleteTool() {
+    fun deleteTool(tool: ToolDetailUiState) {
         if (isProcessing.value.not())
             viewModelScope.launch {
                 _isProcessing.value = true
-                toolsRepo.deleteTool(toolId) {
+                val owner = tool.owner
+                toolsRepo.deleteTool(tool.toToolInApp(), owner.copy(ownTools = owner.ownTools.apply { remove(toolId) })) {
                     getTool(toolId)
                     isEditingToolInfo.value = false
                     _isProcessing.value = false
@@ -125,24 +152,9 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
             }
     }
 
-    fun discardChangesInToolDetail(tool: ToolInApp) {
+    fun discardChangesInToolDetail(tool: ToolDetailUiState) {
         initiateOwnerToolDetailEditingUiState(tool)
         isEditingToolInfo.value = false
     }
+
 }
-
-data class OwnerToolDetailUi(
-    val id: String = "",
-    val name: String = "",
-    val description: String = "",
-    val instruction: String = "",
-    val images: List<String> = emptyList(),
-    val tags: String? = null,
-    val owner: User = User(),
-    val borrower: User? = null,
-    val isAvailable: Boolean = true,
-    val toolToShow: ToolInApp
-)
-
-
-fun OwnerToolDetailUi.toToolInApp() = toolToShow.copy(name = name, description = description, imageUrls = images, tags =tags?.replace(" ", "")?.split(",")?.filterNot { it == "" } ?: emptyList())

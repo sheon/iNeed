@@ -1,6 +1,6 @@
 package lend.borrow.tool
 
-import ToolInApp
+import ToolDetailUiState
 import User
 import android.app.Application
 import android.content.Context
@@ -8,6 +8,7 @@ import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.merge
 import lend.borrow.tool.utility.getCurrentLocation
+import lend.borrow.tool.utility.toToolDetailUi
 
 class ToolsViewModel(private val application: Application, val user: User?) : BaseViewModel() {
 
@@ -26,8 +27,8 @@ class ToolsViewModel(private val application: Application, val user: User?) : Ba
     val favorites: MutableStateFlow<List<String>>
         get() = MutableStateFlow( userRepo.currentUser.value?.favoriteTools?: emptyList())
 
-    var _data = mutableListOf<ToolInApp>()
-    var data = MutableStateFlow<List<ToolInApp>>(emptyList())
+    var _data = mutableListOf<ToolDetailUiState>()
+    var data = MutableStateFlow<List<ToolDetailUiState>>(emptyList())
 
     init {
         // In case, a registered user logs in then the tools should be fetched as soon as possible.
@@ -51,14 +52,17 @@ class ToolsViewModel(private val application: Application, val user: User?) : Ba
             callback(lat, long)
         }
     }
+
+    private var showingOwnersTools = false
     fun getToolsFromRemote(location: GeoPoint? = null, isOwnerOfTools: Boolean = false)  {
+        showingOwnersTools = isOwnerOfTools
         anonymousUserLocation = location
         launchWithCatchingException {
             if (!fetchingToolsInProgress.value) {
                 _data.clear()
                 fetchingToolsInProgress.value = true
                 toolsRepo.getAvailableTools(location, {
-                    _data.addAll(it.filter { user == null || user.ownTools.contains(it.id) == isOwnerOfTools })
+                    _data.addAll(it.filter { user == null || user.ownTools.contains(it.id) == showingOwnersTools }.map { it.toToolDetailUi(application) })
                     data.value = _data
                     fetchingToolsInProgress.value = false
                 }, userRepo)
@@ -73,7 +77,7 @@ class ToolsViewModel(private val application: Application, val user: User?) : Ba
     }
 
     fun filterData(iNeedInput: String) {
-        val tmpToolList = mutableListOf<ToolInApp>()
+        val tmpToolList = mutableListOf<ToolDetailUiState>()
         if (iNeedInput.isNotBlank()) {
             if (iNeedInput.split(" ").size == 1) {
                 tmpToolList.addAll(_data.filter {

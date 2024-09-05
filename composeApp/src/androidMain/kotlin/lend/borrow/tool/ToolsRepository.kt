@@ -3,8 +3,10 @@ package lend.borrow.tool
 
 import ToolInApp
 import ToolInFireStore
+import User
 import android.app.Application
 import android.net.Uri
+import android.util.Log
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.firestore.CollectionReference
 import dev.gitlive.firebase.firestore.DocumentReference
@@ -23,6 +25,8 @@ class ToolsRepository(val application: Application) {
     val dbTools: CollectionReference = db.collection("Tools")
     val storage = Firebase.storage
 
+    private val Tag = ToolsRepository::class.java.name
+
     companion object {
         private lateinit var instance: ToolsRepository
         fun getInstance(application: Application): ToolsRepository {
@@ -34,20 +38,25 @@ class ToolsRepository(val application: Application) {
     }
     suspend fun getAvailableTools(location: GeoPoint? = null, retrievedData: (List<ToolInApp>) -> Unit, userRepository: UserRepository) {
         userRepository.getNearByOwners(location) { nearByOwners ->
+            //Todo: Maybe it will be more efficient to loop over the owners and get their tools instead of getting all of them
             dbTools.get().let { queryDocumentSnapshots ->
                 val tmpOwnerIds = nearByOwners.associateBy { it.id }
                 val toolList = mutableListOf<ToolInApp>()
                 if (queryDocumentSnapshots.documents.isNotEmpty()) {
                     val list = queryDocumentSnapshots.documents
                     for (d in list) {
+                        val imageUrlList = mutableListOf<String>()
                         val c: ToolInFireStore = d.data<ToolInFireStore>()
+                        c.imageReferences.forEach {
+                            imageUrlList.add(storage.reference(it).getDownloadUrl())
+                        }
                         tmpOwnerIds[c.owner]?.let {
-                            val transformedTool = c.toToolInApp(it, userRepo = userRepository)
-                            toolList.add(transformedTool.copy(id = d.id)) // This ID will be used only in the app after the tool is fetched and there is not need to store it on FireStore.
+                            val transformedTool = c.toToolInApp(id= d.id, it, userRepo = userRepository, this)
+                            toolList.add(transformedTool) // This ID will be used only in the app after the tool is fetched and there is not need to store it on FireStore.
                         }
                     }
                 } else {
-                    println("Ehsan: No data found in Database")
+                    Log.i(Tag, "No data found in Database")
                 }
                 retrievedData.invoke(toolList)
             }
@@ -58,8 +67,8 @@ class ToolsRepository(val application: Application) {
             dbTools.document(toolId).let { toolRef ->
                 val tool = toolRef.get().data<ToolInFireStore>()
                 userRepository.getUserInfo(tool.owner)?.let {
-                    val transformedTool = tool.toToolInApp(it, userRepo = userRepository)
-                    retrievedData.invoke(transformedTool.copy(id = toolId))
+                    val transformedTool = tool.toToolInApp(toolId, it, userRepo = userRepository, this)
+                    retrievedData.invoke(transformedTool)
                 }
             }
     }
@@ -85,27 +94,35 @@ class ToolsRepository(val application: Application) {
             uploadedImagesDownloadableUrl.add(imageRef.getDownloadUrl())
             uploadedImagesStoragePath.add(path)
         }
-        val tempTool = ToolInFireStore(toolName, toolDescription, tags = tags.toMutableList(), imageReferences = uploadedImagesStoragePath, imageUrls = uploadedImagesDownloadableUrl, owner = ownerId)
+        val tempTool = ToolInFireStore(toolName, toolDescription, tags = tags.toMutableList(), imageReferences = uploadedImagesStoragePath,owner = ownerId)
         return dbTools.add(tempTool)
     }
 
-    suspend fun updateToolDetail(tool: ToolInApp, callBack: () -> Unit) {
-        val uploadedImagesDownloadableUrl = tool.imageUrls.toMutableList()
-        val uploadedImagesStoragePath = tool.imageReferences.toMutableList()
-        tool.newImages.forEach { imageUUID ->
+    suspend fun updateToolDetail(newTool: ToolInApp, callBack: () -> Unit) {
+        val uploadedImagesStoragePath = newTool.imageRefUrlMap.toMutableMap()
+        newTool.newImages.forEach { imageUUID ->
             val imageNameWithSuffix = "${UUID.randomUUID()}.png"
             val path = "tools/$imageNameWithSuffix"
             val imageRef = storage.reference(path)
             imageRef.putFile(File(Uri.parse(imageUUID)))
-            uploadedImagesDownloadableUrl.add(imageRef.getDownloadUrl())
-            uploadedImagesStoragePath.add(path)
+            uploadedImagesStoragePath[path] = imageRef.getDownloadUrl()
         }
-        val tempTool = tool.copy(imageReferences = uploadedImagesStoragePath, imageUrls = uploadedImagesDownloadableUrl).toToolInFireStore()
-        dbTools.document(tool.id).update(tempTool)
+        deleteToolImages(newTool.deletedImages)
+        val tempTool = newTool.copy(imageRefUrlMap = uploadedImagesStoragePath).toToolInFireStore()
+        dbTools.document(newTool.id).update(tempTool)
         callBack()
     }
-    suspend fun deleteTool(toolId: String, progressCallBack: () -> Unit) {
-        dbTools.document(toolId).delete()
+    suspend fun deleteTool(tool: ToolInApp, user: User, progressCallBack: () -> Unit) {
+        deleteToolImages(tool.imageRefUrlMap.keys.toList())
+        dbTools.document(tool.id).delete()
+        UserRepository.getInstance(application).dbUsers.document(user.id).update(user)
         progressCallBack()
     }
+
+    private suspend fun deleteToolImages(images: List<String>) {
+        images.forEach {
+            storage.reference(it).delete()
+        }
+    }
+
 }

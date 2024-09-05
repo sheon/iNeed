@@ -133,8 +133,8 @@ fun UserProfile(
                                             name = userName,
                                             searchRadius = userSearchRadius,
                                             geoPoint = geoPoint,
-                                            latitude = loggedInUser.latitude,
-                                            longitude = loggedInUser.longitude
+                                            latitude = geoPoint.latitude,
+                                            longitude = geoPoint.longitude
                                         ),
                                         loggedInUser
                                     )
@@ -329,7 +329,7 @@ fun UserProfile(
                 openAddressRequiredDialog.value = false
             })
     } else if (openAddToolDialog.value)
-        CustomDialogWithResult({
+        AddToolDialog({
             openAddToolDialog.value = false
         }, {
             openAddToolDialog.value = false

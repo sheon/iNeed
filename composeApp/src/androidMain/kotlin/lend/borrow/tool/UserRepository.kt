@@ -61,7 +61,7 @@ class UserRepository(val application: Application) {
 
     private suspend fun getCurrentUser(): User? = authService.auth.currentUser?.let {
         val result = dbUsers.document(it.uid).get()
-        return result.data<User>()
+        return result.data<User?>()
     }
 
     suspend fun signOut() {

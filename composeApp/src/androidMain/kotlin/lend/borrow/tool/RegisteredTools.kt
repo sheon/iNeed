@@ -1,6 +1,6 @@
 package lend.borrow.tool
 
-import ToolInApp
+import ToolDetailUiState
 import User
 import android.Manifest
 import android.app.Activity
@@ -67,6 +67,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -93,7 +94,6 @@ import org.json.JSONObject
 import java.io.IOException
 
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun RegisteredToolsScreen(
     user: User?,
@@ -136,7 +136,6 @@ fun RegisteredToolsScreen(
 }
 
 
-@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController, user: User?) {
 
@@ -144,8 +143,7 @@ fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController, user
 
     Column(
         Modifier
-            .fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .fillMaxSize()
     ) {
         if (user == null)
             Box(modifier = Modifier
@@ -154,15 +152,15 @@ fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController, user
                 .padding(10.dp)
             ) {
                 Text(
-                    text = "As a guest, you can only browse through the list of tools available in 2km radius around your current location. You won't be able to borrow them or like them as your favorites. The search function only looks through the names and provided tags. To benefit from all features you need to sign in as a registered user.",
+                    text = stringResource(lend.borrow.tool.R.string.guest_warning_message),
                     modifier = Modifier
                         .padding(10.dp),
                     textAlign = TextAlign.Justify,
                     fontStyle = FontStyle.Italic
                 )
             }
-        else
-            TabScreen(toolsViewModel, navController, user)
+
+        TabScreen(toolsViewModel, navController, user)
 
     }
 
@@ -193,7 +191,7 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 
     client.newCall(request).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
-            Log.v("Ehsan", "Request Failed" + e)
+            Log.v(this@getResponseFromAI.javaClass.name, "Request Failed" + e)
         }
 
         override fun onResponse(call: Call, response: Response) {
@@ -214,12 +212,12 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ListItem(
-    tool: ToolInApp,
+    tool: ToolDetailUiState,
     user: User?,
     toolsViewModel: ToolsViewModel,
     navController: NavController
 ) {
-    var tool_tmp: ToolInApp by remember {
+    var tool_tmp: ToolDetailUiState by remember {
         mutableStateOf(tool)
     }
     var favorites = remember {
@@ -229,7 +227,7 @@ fun ListItem(
 
     val userOwnsThisTool = tool.owner.id == user?.id
     val toolOwner = tool.owner
-    val toolAvailability: Boolean = userOwnsThisTool || toolOwner.availableAtTheMoment && tool.available
+    val toolAvailability: Boolean = userOwnsThisTool || toolOwner.availableAtTheMoment && tool.isAvailable
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     Card(
         modifier = Modifier
@@ -243,7 +241,7 @@ fun ListItem(
                     navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool.id}")
             },
         colors = CardDefaults.cardColors(Color.White),
-        elevation = CardDefaults.cardElevation(if (tool.available) 5.dp else 0.dp)
+        elevation = CardDefaults.cardElevation(if (tool.isAvailable) 5.dp else 0.dp)
     ) {
         Column(
             Modifier
@@ -257,7 +255,10 @@ fun ListItem(
                         .height(200.dp),
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    items(tool_tmp.imageUrls) {
+                    items(tool_tmp.imageUrlsRefMap.keys.toList(),
+                        key = {
+                            it
+                        }) {
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
@@ -265,7 +266,7 @@ fun ListItem(
                             contentAlignment = Alignment.Center
                         ) {
                             AsyncImage(
-                                model = it,
+                                model = it, // This should be changed to a UiState data class as in ToolDetailScreen
                                 modifier = Modifier
                                     .alpha(toolAlpha)
                                     .border(1.dp, Color.LightGray),
@@ -281,7 +282,7 @@ fun ListItem(
             Text(text = tool.name, modifier = Modifier.padding(5.dp))
             Text(text = "Description: ", fontWeight = FontWeight.Bold)
             Text(text = tool.description,  maxLines = 3,modifier = Modifier.padding(5.dp), overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Justify)
-            if (tool.tags.isNotEmpty())
+            if (tool.tags?.isNotEmpty() == true)
                 Spacer(modifier = Modifier.height(11.dp))
             FlowRow(
                 modifier = Modifier
@@ -291,7 +292,7 @@ fun ListItem(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                tool.tags.forEach { tag ->
+                tool.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
                     Box(
                         modifier = Modifier
                             .wrapContentSize()
@@ -320,7 +321,7 @@ fun ListItem(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Button(
-                            enabled = tool.available,
+                            enabled = tool.isAvailable,
                             modifier = Modifier.alpha(toolAlpha),
                             onClick = {
                                 if (toolAvailability) {
@@ -384,33 +385,37 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController, user
     val tabs = listOf("Others", "Yours")
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        TabRow(
-            selectedTabIndex = tabIndex,
-            backgroundColor = Color.White,
-            indicator = { tabPositions ->
-                if (tabIndex < tabPositions.size) {
-                    TabRowDefaults.Indicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[tabIndex]),
-                        color = Color(getColor(LocalContext.current, R.color.primary))
+        user?.let {
+            TabRow(
+                selectedTabIndex = tabIndex,
+                backgroundColor = Color.White,
+                indicator = { tabPositions ->
+                    if (tabIndex < tabPositions.size) {
+                        TabRowDefaults.Indicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[tabIndex]),
+                            color = Color(getColor(LocalContext.current, R.color.primary))
+                        )
+                    }
+                }
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(text = { Text(title) },
+                        selected = tabIndex == index,
+                        selectedContentColor = Color.Yellow,
+                        onClick = {
+                            if(tabIndex != index) {
+                                toolsViewModel.getToolsFromRemote(isOwnerOfTools = index == 1)
+                                tabIndex = index
+                            }
+                        }
                     )
                 }
             }
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(text = { Text(title) },
-                    selected = tabIndex == index,
-                    selectedContentColor = Color.Yellow,
-                    onClick = {
-                        if(tabIndex != index) {
-                            toolsViewModel.getToolsFromRemote(isOwnerOfTools = index == 1)
-                            tabIndex = index
-                        }
-                    }
-                )
-            }
+            Spacer(modifier = Modifier.size(10.dp))
         }
+
         val backgroundColor = Color(LocalContext.current.resources.getColor(R.color.primary))
-        Spacer(modifier = Modifier.size(10.dp))
+
 
         OutlinedTextField(
             value = iNeedInput, onValueChange = {
@@ -441,7 +446,9 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController, user
                 unfocusedTextColor = backgroundColor,
                 focusedTextColor = backgroundColor,
                 focusedLabelColor = backgroundColor,
-                unfocusedLabelColor = backgroundColor
+                unfocusedLabelColor = backgroundColor,
+                unfocusedTrailingIconColor = backgroundColor,
+                focusedTrailingIconColor = backgroundColor
             )
         )
 

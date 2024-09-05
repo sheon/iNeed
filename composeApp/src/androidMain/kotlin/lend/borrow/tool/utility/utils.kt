@@ -1,9 +1,11 @@
 package lend.borrow.tool.utility
 
+import ToolDetailUiState
 import ToolInApp
 import ToolInFireStore
 import User
 import android.annotation.SuppressLint
+import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -34,16 +36,32 @@ import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import lend.borrow.tool.ToolsRepository
 import lend.borrow.tool.UserRepository
 import lend.borrow.tool.shared.R
 
-suspend fun ToolInFireStore.toToolInApp(owner: User, userRepo: UserRepository): ToolInApp { // This may be avoided if we have one data class for tool.
-    return ToolInApp(name, "", description, imageReferences, imageUrls, tags, available, owner, borrower?.let { userRepo.getUserInfo(it) })
+suspend fun ToolInFireStore.toToolInApp(
+    id:String,
+    owner: User,
+    userRepo: UserRepository,
+    toolsRepo: ToolsRepository
+): ToolInApp { // This may be avoided if we have one data class for tool.
+    return ToolInApp(name = name, id = id, description = description, imageRefUrlMap = imageReferences.associateWith {
+        toolsRepo.storage.reference(it).getDownloadUrl()
+    }, tags = tags, available = available, owner = owner, borrower = borrower?.let { userRepo.getUserInfo(it) }, instruction = instruction)
 }
 
 fun ToolInApp.toToolInFireStore(): ToolInFireStore { // This may be avoided if we have one data class for tool.
-    return ToolInFireStore(name, description, imageReferences, imageUrls, tags, available, owner.id, borrower?.id )
+    return ToolInFireStore(name = name, description = description, imageReferences = imageRefUrlMap.keys.toList(), tags = tags, available = available, owner = owner.id, borrower = borrower?.id, instruction = instruction)
 }
+
+fun ToolDetailUiState.toToolInApp() = defaultTool.copy(name = name, description = description.ifEmpty { null }, imageRefUrlMap = images, tags = tags?.replace(" ", "")?.split(",")?.filterNot { it =="" } ?: emptyList()).also {
+    it.newImages.addAll(this.newImages)
+    it.deletedImages.addAll(this.deletedImages)
+}
+fun ToolInApp.toToolDetailUi(application: Application) = ToolDetailUiState(id = id, name = name, description = description ?: application.getString(lend.borrow.tool.R.string.no_description), instruction = instruction ?: application.getString(
+    lend.borrow.tool.R.string.no_instruction
+), images = imageRefUrlMap, tags = tags.ifEmpty { null }?.joinToString(", "), owner = owner, borrower = borrower, isAvailable =available, defaultTool = this)
 
 fun GeoPoint.distanceToOtherPoint(point: GeoPoint): Float {
     val user1 = Location("user1")
@@ -128,4 +146,16 @@ fun getCurrentLocation(context: Context, callback: suspend (Double, Double) -> U
         .addOnFailureListener { exception ->
             exception.printStackTrace()
         }
+}
+
+
+@Composable
+fun CustomDialogWithResult(
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss,
+        DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false),
+        content
+    )
 }
