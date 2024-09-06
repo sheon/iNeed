@@ -9,7 +9,6 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,9 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,7 +29,6 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
@@ -44,8 +40,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -68,7 +62,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -213,9 +206,8 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun ListItem(
+fun ToolInfoCard(
     tool: ToolDetailUiState,
-    index: Int,
     user: User?,
     toolsViewModel: ToolsViewModel,
     navController: NavController
@@ -316,68 +308,9 @@ fun ListItem(
                     }
                 }
             }
-            user?.let {
-                val borrowRequestAvailability = toolAvailability && it.borrowRequestSent.any { it.toolId == tool.id }.not()
-                if (it.id != tool_tmp.owner.id) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Button(
-                            enabled = borrowRequestAvailability,
-                            //modifier = Modifier.alpha(if (borrowRequestAvailability) 1f else 0.9f),
-                            onClick = {
-                                if (borrowRequestAvailability) {
-                                    tool_tmp = tool_tmp.copy(somethingIsChanging = true)
-                                    toolsViewModel.onRequestToBorrow(it, tool_tmp) { // defaultTool is the ToolInApp instance while the rest is the UI states
-                                        tool_tmp = tool_tmp.copy(somethingIsChanging = false)
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                Color(
-                                    LocalContext.current.getColor(
-                                        R.color.primary
-                                    )
-                                ), Color.White
-                            ),
-                            shape = RoundedCornerShape(5.dp)
-                        ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(15.dp)) {
-                                Text(if (borrowRequestAvailability) "May I borrow this item?" else "Request pending" )
 
-                                if (tool_tmp.somethingIsChanging)
-                                    CircularProgressIndicator(modifier = Modifier
-                                        .height(20.dp)
-                                        .aspectRatio(1f),
-                                        color = Color.White
-                                    )
-                            }
-                        }
-                        Image(
-                            painterResource(if (favorites.contains(tool_tmp.id)) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
-                            contentDescription = "",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .clickable {
-                                    if (favorites.contains(tool_tmp.id)) { // This should be revised and use the single source of the truth.
-                                        user.favoriteTools.remove(tool_tmp.id)
-                                        toolsViewModel.onAddToolToUserFavorites(it)
-                                        favorites.remove(tool_tmp.id)
-                                    } else {
-                                        user.favoriteTools.add(tool_tmp.id)
-                                        toolsViewModel.onAddToolToUserFavorites(it)
-                                        favorites.add(tool_tmp.id)
+            UserBorrowRequestButtonAndFavoritesView(user, toolsViewModel, tool_tmp)
 
-                                    }
-                                }
-                                .align(Alignment.CenterVertically)
-                        )
-
-                    }
-                }
-            }
         }
     }
 }
@@ -385,7 +318,7 @@ fun ListItem(
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
-    val data by toolsViewModel.data.collectAsState()
+    val data by toolsViewModel.toolListAroundUser.collectAsState()
     val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
     val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
 
@@ -482,11 +415,11 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                 .background(backgroundColor.copy(alpha = 0.2f))
         ) {
             this.
-            itemsIndexed(data,
-                key = { index, item ->
-                    item.id
-                }) {index, item ->
-                ListItem(item, index, loggedInUser, toolsViewModel, navController)
+            items(data,
+                key = {
+                    it.id
+                }) {item ->
+                ToolInfoCard(item, loggedInUser, toolsViewModel, navController)
             }
         }
     }

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -55,6 +56,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -84,7 +86,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import lend.borrow.tool.shared.R
-import lend.borrow.tool.shared.R.drawable
 import lend.borrow.tool.utility.CustomDialogWithResult
 
 @SuppressLint("StateFlowValueCalledInComposition")
@@ -92,7 +93,7 @@ import lend.borrow.tool.utility.CustomDialogWithResult
 fun ToolDetailScreen(toolId: String, user: User? = null) {
     val application = (LocalContext.current as Activity).application
     val toolDetailViewModel: ToolDetailViewModel = viewModel {
-        ToolDetailViewModel(application, toolId)
+        ToolDetailViewModel(application, toolId, user?.id)
     }
     val tool by toolDetailViewModel.tool.collectAsState()
     val uploadInProgress by toolDetailViewModel.isProcessing.collectAsState()
@@ -258,53 +259,9 @@ fun StaticToolInfoScreen(chosenTool: ToolDetailUiState, user: User?, toolDetailV
                 }
             }
         }
-        user?.let {
-            if (userOwnThisTool.not()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Button(
-                        enabled = chosenTool.isAvailable,
-                        modifier = Modifier.alpha(toolAlpha),
-                        onClick = {
-//                        if (toolAvailability) {
-//                            chosenTool.available = false
-//                        }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            Color(
-                                LocalContext.current.getColor(
-                                    R.color.primary
-                                )
-                            ), Color.White
-                        ),
-                        shape = RoundedCornerShape(5.dp)
-                    ) {
-                        Text("May I borrow this item?")
-                    }
-                    Image(
-                        painterResource(if (favorites.value) drawable.baseline_favorite_24 else drawable.baseline_favorite_border_24),
-                        contentDescription = "",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .clickable {
-                                if (favorites.value) { // This should be revised and use the single source of the truth.
-                                    user.favoriteTools.remove(chosenTool.id)
-                                    toolDetailViewModel.updateUserFavoriteTools(it)
-                                    favorites.value = false
-                                } else {
-                                    user.favoriteTools.add(chosenTool.id)
-                                    toolDetailViewModel.updateUserFavoriteTools(it)
-                                    favorites.value = true
-                                }
-                            }
-                            .align(Alignment.CenterVertically)
-                    )
-                }
-            }
-        }
+
+        UserBorrowRequestButtonAndFavoritesView(user, toolDetailViewModel, chosenTool)
+
     }
     zoomIn?.let {
         ZoomInImage(it) {
@@ -547,7 +504,6 @@ fun EditingToolInfoScreen(
         }
     }
 
-
     if (takingPics)
         TakePictureOfTool(toolDetailViewModel)
 
@@ -656,3 +612,79 @@ fun TakePictureOfTool(toolDetailViewModel: ToolDetailViewModel) {
 }
 
 
+@Composable
+fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: ToolsViewModel, chosenTool: ToolDetailUiState) {
+    var tool_tmp: ToolDetailUiState by remember {
+        mutableStateOf(chosenTool)
+    }
+    var favorites = remember {
+        mutableStateListOf<String>()
+    }
+    favorites.addAll(user?.favoriteTools ?: emptyList())
+    val userOwnsThisTool = tool_tmp.owner.id == user?.id
+    val toolOwner = tool_tmp.owner
+    val toolAvailability: Boolean = userOwnsThisTool || toolOwner.availableAtTheMoment && tool_tmp.isAvailable
+    val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
+    user?.let {
+        val borrowRequestAvailability = toolAvailability && it.borrowRequestSent.any { it.toolId == tool_tmp.id }.not()
+        if (it.id != tool_tmp.owner.id) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(
+                    enabled = borrowRequestAvailability,
+                    modifier = Modifier.alpha(toolAlpha),
+                    onClick = {
+                        if (borrowRequestAvailability) {
+                            tool_tmp = tool_tmp.copy(somethingIsChanging = true)
+                            toolDetailViewModel.onRequestToBorrow(it, tool_tmp) { // defaultTool is the ToolInApp instance while the rest is the UI states
+                                tool_tmp = tool_tmp.copy(somethingIsChanging = false)
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        Color(
+                            LocalContext.current.getColor(
+                                R.color.primary
+                            )
+                        ), Color.White
+                    ),
+                    shape = RoundedCornerShape(5.dp)
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(15.dp)) {
+                        Text(if (borrowRequestAvailability) "May I borrow this item?" else "Request pending" )
+
+                        if (tool_tmp.somethingIsChanging)
+                            CircularProgressIndicator(modifier = Modifier
+                                .height(20.dp)
+                                .aspectRatio(1f),
+                                color = Color.White
+                            )
+                    }
+                }
+                Image(
+                    painterResource(if (favorites.contains(tool_tmp.id)) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
+                    contentDescription = "",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .clickable {
+                            if (favorites.contains(tool_tmp.id)) { // This should be revised and use the single source of the truth.
+                                user.favoriteTools.remove(tool_tmp.id)
+                                toolDetailViewModel.onAddToolToUserFavorites(it)
+                                favorites.remove(tool_tmp.id)
+                            } else {
+                                user.favoriteTools.add(tool_tmp.id)
+                                toolDetailViewModel.onAddToolToUserFavorites(it)
+                                favorites.add(tool_tmp.id)
+
+                            }
+                        }
+                        .align(Alignment.CenterVertically)
+                )
+
+            }
+        }
+    }
+}

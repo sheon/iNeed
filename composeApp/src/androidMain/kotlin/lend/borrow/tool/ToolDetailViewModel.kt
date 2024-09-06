@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 import lend.borrow.tool.utility.toToolDetailUi
 import lend.borrow.tool.utility.toToolInApp
 
-class ToolDetailViewModel(private val application: Application, val toolId: String) : BaseViewModel() {
+class ToolDetailViewModel(private val application: Application, val toolId: String, userId: String? = null) : ToolsViewModel(application, userId) {
     var isSavingChanges = MutableStateFlow(false)
     val isFetchingTool = MutableStateFlow(false)
 
@@ -23,13 +23,7 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     val toolDetailUiState by lazy {
         _toolDetailUiState.asStateFlow()
     }
-    val toolsRepo by lazy {
-        ToolsRepository.getInstance(application)
-    }
 
-    val userRepo by lazy {
-        UserRepository.getInstance(application)
-    }
     val favorites: MutableStateFlow<List<String>>
         get() = MutableStateFlow( userRepo.currentUser.value?.favoriteTools?: emptyList())
 

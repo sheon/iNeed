@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import lend.borrow.tool.utility.getCurrentLocation
 import lend.borrow.tool.utility.toToolDetailUi
 
-class ToolsViewModel(private val application: Application, val userId: String?) : BaseViewModel() {
+open class ToolsViewModel(private val application: Application, val userId: String?) : BaseViewModel() {
 
     var fetchingToolsInProgress = MutableStateFlow(false)
     var fetchingLocationInProgress = MutableStateFlow(false)
@@ -29,8 +29,8 @@ class ToolsViewModel(private val application: Application, val userId: String?) 
         UserRepository.getInstance(application)
     }
 
-    var _data = mutableListOf<ToolDetailUiState>()
-    var data = MutableStateFlow<List<ToolDetailUiState>>(emptyList())
+    var _toolListAroundUser = mutableListOf<ToolDetailUiState>()
+    var toolListAroundUser = MutableStateFlow<List<ToolDetailUiState>>(emptyList())
 
     val loggedInUser by lazy {
         userRepo.currentUser
@@ -58,7 +58,7 @@ class ToolsViewModel(private val application: Application, val userId: String?) 
     fun refreshData(isOwnerOfTools: Boolean = false) {
         launchWithCatchingException {
             userRepo.fetchUser(userId) {
-                _data.clear()
+                _toolListAroundUser.clear()
                 userRepo.refreshData()
                 getToolsFromRemote(anonymousUserLocation, isOwnerOfTools)
             }
@@ -79,11 +79,11 @@ class ToolsViewModel(private val application: Application, val userId: String?) 
         anonymousUserLocation = location
         launchWithCatchingException {
             if (!fetchingToolsInProgress.value) {
-                _data.clear()
+                _toolListAroundUser.clear()
                 fetchingToolsInProgress.value = true
                 toolsRepo.getAvailableTools(location, {
-                    _data.addAll(it.filter { loggedInUser.value == null || loggedInUser.value?.ownTools?.contains(it.id) == showingOwnersTools }.map { it.toToolDetailUi(application) })
-                    data.value = _data
+                    _toolListAroundUser.addAll(it.filter { loggedInUser.value == null || loggedInUser.value?.ownTools?.contains(it.id) == showingOwnersTools }.map { it.toToolDetailUi(application) })
+                    toolListAroundUser.value = _toolListAroundUser
                     fetchingToolsInProgress.value = false
                 }, userRepo)
             }
@@ -106,27 +106,27 @@ class ToolsViewModel(private val application: Application, val userId: String?) 
         val tmpToolList = mutableListOf<ToolDetailUiState>()
         if (iNeedInput.isNotBlank()) {
             if (iNeedInput.split(" ").size == 1) {
-                tmpToolList.addAll(_data.filter {
+                tmpToolList.addAll(_toolListAroundUser.filter {
                     it.name.replace(" ", "").equals(iNeedInput, true)
                 })
-                data.value = tmpToolList
+                toolListAroundUser.value = tmpToolList
             } else {
                 fetchingToolsInProgress.value = true
                 application.getResponseFromAI("I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
                     it.forEach { requiredTool ->
-                        tmpToolList.addAll(_data.filter { availableTool ->
+                        tmpToolList.addAll(_toolListAroundUser.filter { availableTool ->
                             availableTool.name
                                 .replace(" ", "")
                                 .equals(requiredTool.replace(" ", ""), true)
                         })
                     }
                     fetchingToolsInProgress.value = false
-                    data.value = tmpToolList
+                    toolListAroundUser.value = tmpToolList
                 }
             }
         } else {
-            tmpToolList.addAll(_data)
-            data.value = tmpToolList
+            tmpToolList.addAll(_toolListAroundUser)
+            toolListAroundUser.value = tmpToolList
         }
     }
 
