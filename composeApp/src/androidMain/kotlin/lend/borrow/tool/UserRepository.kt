@@ -1,5 +1,7 @@
 package lend.borrow.tool
 
+import BorrowRequest
+import ToolInApp
 import User
 import android.app.Application
 import dev.gitlive.firebase.Firebase
@@ -50,13 +52,16 @@ class UserRepository(val application: Application) {
     private val _nearByOwners = mutableListOf<User>()
     val nearByOwners = _nearByOwners
 
-    suspend fun fetchUser(id: String, callBack: () -> Unit = {}) {
-        dbUsers.document(id).get().let { dataSnapShot ->
-            dataSnapShot.data<User>().let { userInfo ->
-                _currentUser.value = userInfo
-                callBack()
+    suspend fun fetchUser(id: String?, callBack: () -> Unit = {}) {
+        id?.let {
+            dbUsers.document(id).get().let { dataSnapShot ->
+                dataSnapShot.data<User>().let { userInfo ->
+                    _currentUser.value = userInfo
+                    callBack()
+                }
             }
-        }
+        } ?: callBack()
+
     }
 
     private suspend fun getCurrentUser(): User? = authService.auth.currentUser?.let {
@@ -86,6 +91,17 @@ class UserRepository(val application: Application) {
     suspend fun updateUserFavoriteTools(user: User) {
         dbUsers.document(user.id).update("favoriteTools" to user.favoriteTools)
         fetchUser(user.id)
+    }
+
+    suspend fun onRequestToBorrow(borrower: User, tool: ToolInApp, callBack: () -> Unit) {
+        val tmpRequest = BorrowRequest(borrower.id, tool.owner.id, tool.id)
+        val tmpOwnerReceivedRequests = tool.owner.borrowRequestReceived.toMutableList()
+        tmpOwnerReceivedRequests.add(tmpRequest)
+        val tmpBorrowerSentRequests = borrower.borrowRequestSent.toMutableList()
+        tmpBorrowerSentRequests.add(tmpRequest)
+        dbUsers.document(tool.owner.id).update("borrowRequestReceived" to tmpOwnerReceivedRequests)
+        dbUsers.document(borrower.id).update("borrowRequestSent" to tmpBorrowerSentRequests)
+        fetchUser(borrower.id, callBack) // Borrower user is the user who is logged in.
     }
 
     suspend fun updateUserInfo(newUserInfo: User, oldUserInfo: User, progressCallBack: () -> Unit) {
@@ -128,10 +144,7 @@ class UserRepository(val application: Application) {
         callback: suspend (List<User>) -> Unit
     ) {
         val possibleLocation = location ?: currentUser.value?.geoPoint
-        if (this.nearByOwners.isNotEmpty())
-            callback(this.nearByOwners)
-        else
-            possibleLocation?.let { availableLocation ->
+        possibleLocation?.let { availableLocation ->
                 val searchDistance = currentUser.value?.searchRadius ?: distance
                 val tempListOfOwnerNearBy = mutableListOf<User>()
                 val collectionRef = Firebase.firestore.collection("Users")

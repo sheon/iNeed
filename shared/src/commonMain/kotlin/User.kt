@@ -30,5 +30,7 @@ data class User(
     val lentTools: MutableList<String> = mutableListOf<String>(),
     var geoPoint: GeoPoint? = null,
     val latitude: Double? = null,
-    val longitude: Double? = null
+    val longitude: Double? = null,
+    val borrowRequestSent: List<BorrowRequest> = emptyList(),
+    val borrowRequestReceived: List<BorrowRequest> = emptyList()
 )

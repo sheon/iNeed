@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -31,6 +32,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
@@ -96,15 +98,15 @@ import java.io.IOException
 
 @Composable
 fun RegisteredToolsScreen(
-    user: User?,
+    userId: String?,
     navController: NavController
 ) {
     val application = (LocalContext.current as Activity).application
     val toolsViewModel: ToolsViewModel = viewModel{
-        ToolsViewModel(application, user = user)
+        ToolsViewModel(application, userId = userId)
     }
 
-
+    val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
 
     val requestPermissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission())
@@ -119,7 +121,7 @@ fun RegisteredToolsScreen(
 
 
 
-    if (user == null && toolsViewModel.anonymousUserLocation == null )
+    if (loggedInUser == null && toolsViewModel.anonymousUserLocation == null )
         if (hasLocationPermission(application)) {
             toolsViewModel.getAnonymousUserLocation(application) { lat, long ->
                 toolsViewModel.getToolsFromRemote(GeoPoint(lat, long))
@@ -131,21 +133,21 @@ fun RegisteredToolsScreen(
         }
 
 
-    ToolsList(toolsViewModel, navController, user)
+    ToolsList(toolsViewModel, navController)
 
 }
 
 
 @Composable
-fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController, user: User?) {
-
+fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController) {
+    val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
     val anythingInProgress by toolsViewModel.anythingInProgress.collectAsState(false)
 
     Column(
         Modifier
             .fillMaxSize()
     ) {
-        if (user == null)
+        if (loggedInUser == null)
             Box(modifier = Modifier
                 .padding(10.dp)
                 .background(Color.Yellow)
@@ -160,7 +162,7 @@ fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController, user
                 )
             }
 
-        TabScreen(toolsViewModel, navController, user)
+        TabScreen(toolsViewModel, navController)
 
     }
 
@@ -213,6 +215,7 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 @Composable
 fun ListItem(
     tool: ToolDetailUiState,
+    index: Int,
     user: User?,
     toolsViewModel: ToolsViewModel,
     navController: NavController
@@ -225,9 +228,9 @@ fun ListItem(
     }
     favorites.addAll(user?.favoriteTools ?: emptyList())
 
-    val userOwnsThisTool = tool.owner.id == user?.id
-    val toolOwner = tool.owner
-    val toolAvailability: Boolean = userOwnsThisTool || toolOwner.availableAtTheMoment && tool.isAvailable
+    val userOwnsThisTool = tool_tmp.owner.id == user?.id
+    val toolOwner = tool_tmp.owner
+    val toolAvailability: Boolean = userOwnsThisTool || (toolOwner.availableAtTheMoment && tool.isAvailable)
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     Card(
         modifier = Modifier
@@ -238,10 +241,10 @@ fun ListItem(
             )
             .clickable(user != null) {
                 if (user != null)
-                    navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool.id}")
+                    navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool_tmp.id}")
             },
         colors = CardDefaults.cardColors(Color.White),
-        elevation = CardDefaults.cardElevation(if (tool.isAvailable) 5.dp else 0.dp)
+        elevation = CardDefaults.cardElevation(if (tool_tmp.isAvailable) 5.dp else 0.dp)
     ) {
         Column(
             Modifier
@@ -279,10 +282,10 @@ fun ListItem(
                 }
             }
             Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
-            Text(text = tool.name, modifier = Modifier.padding(5.dp))
+            Text(text = tool_tmp.name, modifier = Modifier.padding(5.dp))
             Text(text = "Description: ", fontWeight = FontWeight.Bold)
-            Text(text = tool.description,  maxLines = 3,modifier = Modifier.padding(5.dp), overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Justify)
-            if (tool.tags?.isNotEmpty() == true)
+            Text(text = tool_tmp.description,  maxLines = 3,modifier = Modifier.padding(5.dp), overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Justify)
+            if (tool_tmp.tags?.isNotEmpty() == true)
                 Spacer(modifier = Modifier.height(11.dp))
             FlowRow(
                 modifier = Modifier
@@ -292,7 +295,7 @@ fun ListItem(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                tool.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
+                tool_tmp.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
                     Box(
                         modifier = Modifier
                             .wrapContentSize()
@@ -314,19 +317,22 @@ fun ListItem(
                 }
             }
             user?.let {
-                if (it.id != tool.owner.id) {
+                val borrowRequestAvailability = toolAvailability && it.borrowRequestSent.any { it.toolId == tool.id }.not()
+                if (it.id != tool_tmp.owner.id) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Button(
-                            enabled = tool.isAvailable,
-                            modifier = Modifier.alpha(toolAlpha),
+                            enabled = borrowRequestAvailability,
+                            //modifier = Modifier.alpha(if (borrowRequestAvailability) 1f else 0.9f),
                             onClick = {
-                                if (toolAvailability) {
-                                    //tool.available = false
-                                    tool_tmp = tool
+                                if (borrowRequestAvailability) {
+                                    tool_tmp = tool_tmp.copy(somethingIsChanging = true)
+                                    toolsViewModel.onRequestToBorrow(it, tool_tmp) { // defaultTool is the ToolInApp instance while the rest is the UI states
+                                        tool_tmp = tool_tmp.copy(somethingIsChanging = false)
+                                    }
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(
@@ -338,22 +344,31 @@ fun ListItem(
                             ),
                             shape = RoundedCornerShape(5.dp)
                         ) {
-                            Text("May I borrow this item?")
+                            Row(horizontalArrangement = Arrangement.spacedBy(15.dp)) {
+                                Text(if (borrowRequestAvailability) "May I borrow this item?" else "Request pending" )
+
+                                if (tool_tmp.somethingIsChanging)
+                                    CircularProgressIndicator(modifier = Modifier
+                                        .height(20.dp)
+                                        .aspectRatio(1f),
+                                        color = Color.White
+                                    )
+                            }
                         }
                         Image(
-                            painterResource(if (favorites.contains(tool.id)) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
+                            painterResource(if (favorites.contains(tool_tmp.id)) R.drawable.baseline_favorite_24 else R.drawable.baseline_favorite_border_24),
                             contentDescription = "",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .clickable {
-                                    if (favorites.contains(tool.id)) { // This should be revised and use the single source of the truth.
-                                        user.favoriteTools.remove(tool.id)
-                                        toolsViewModel.updateUserFavoriteTools(it)
-                                        favorites.remove(tool.id)
+                                    if (favorites.contains(tool_tmp.id)) { // This should be revised and use the single source of the truth.
+                                        user.favoriteTools.remove(tool_tmp.id)
+                                        toolsViewModel.onAddToolToUserFavorites(it)
+                                        favorites.remove(tool_tmp.id)
                                     } else {
-                                        user.favoriteTools.add(tool.id)
-                                        toolsViewModel.updateUserFavoriteTools(it)
-                                        favorites.add(tool.id)
+                                        user.favoriteTools.add(tool_tmp.id)
+                                        toolsViewModel.onAddToolToUserFavorites(it)
+                                        favorites.add(tool_tmp.id)
 
                                     }
                                 }
@@ -369,9 +384,9 @@ fun ListItem(
 
 @OptIn(ExperimentalMaterialApi::class)
 @Composable
-fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController, user: User?)   {
+fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
     val data by toolsViewModel.data.collectAsState()
-
+    val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
     val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
 
     var iNeedInput by rememberSaveable { mutableStateOf("") }
@@ -385,7 +400,7 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController, user
     val tabs = listOf("Others", "Yours")
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        user?.let {
+        loggedInUser?.let {
             TabRow(
                 selectedTabIndex = tabIndex,
                 backgroundColor = Color.White,
@@ -467,11 +482,11 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController, user
                 .background(backgroundColor.copy(alpha = 0.2f))
         ) {
             this.
-            items(data,
-                key = {
-                    it.id
-                }) {
-                ListItem(it, user, toolsViewModel, navController)
+            itemsIndexed(data,
+                key = { index, item ->
+                    item.id
+                }) {index, item ->
+                ListItem(item, index, loggedInUser, toolsViewModel, navController)
             }
         }
     }

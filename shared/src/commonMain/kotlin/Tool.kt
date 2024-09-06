@@ -42,7 +42,8 @@ data class ToolDetailUiState(
     val owner: User = User(),
     val borrower: User? = null,
     val isAvailable: Boolean = true,
-    val defaultTool: ToolInApp
+    val defaultTool: ToolInApp,
+    val somethingIsChanging: Boolean = false
 ) {
     val newImages = mutableListOf<String>()
     val deletedImages = mutableListOf<String>()

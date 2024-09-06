@@ -107,7 +107,7 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                 }
                 composable(BorrowLendAppScreen.TOOLS.name) {
                     currentScreenName.value = BorrowLendAppScreen.TOOLS
-                    RegisteredToolsScreen(user.value, navController)
+                    RegisteredToolsScreen(user.value?.id, navController)
                 }
 
                 composable(
