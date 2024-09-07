@@ -14,7 +14,7 @@ import kotlinx.coroutines.launch
 import lend.borrow.tool.utility.getCurrentLocation
 import lend.borrow.tool.utility.toToolDetailUi
 
-open class ToolsViewModel(private val application: Application, val userId: String?) : BaseViewModel() {
+open class ToolsViewModel(private val application: Application, open val userId: String?) : BaseViewModel() {
 
     var fetchingToolsInProgress = MutableStateFlow(false)
     var fetchingLocationInProgress = MutableStateFlow(false)
@@ -93,12 +93,6 @@ open class ToolsViewModel(private val application: Application, val userId: Stri
     fun onAddToolToUserFavorites(user: User) {
         launchWithCatchingException {
             userRepo.updateUserFavoriteTools(user)
-        }
-    }
-
-    fun onRequestToBorrow(user: User, toolToBorrow: ToolDetailUiState, callback: () -> Unit) {
-        launchWithCatchingException {
-            userRepo.onRequestToBorrow(user, toolToBorrow.defaultTool, callback)
         }
     }
 

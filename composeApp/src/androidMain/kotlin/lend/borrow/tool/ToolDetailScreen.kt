@@ -41,25 +41,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.DropdownMenu
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,13 +84,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import lend.borrow.tool.shared.R
 import lend.borrow.tool.utility.CustomDialogWithResult
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
-fun ToolDetailScreen(toolId: String, user: User? = null) {
+fun ToolDetailScreen(toolId: String, user: User? = null, navController: NavController) {
     val application = (LocalContext.current as Activity).application
     val toolDetailViewModel: ToolDetailViewModel = viewModel {
         ToolDetailViewModel(application, toolId, user?.id)
@@ -103,32 +104,13 @@ fun ToolDetailScreen(toolId: String, user: User? = null) {
     when {
         tool != null -> {
             Column {
-                if (tool!!.owner.id == user?.id) {
-                    if (isEditingToolInfo.not()) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(10.dp),
-                            horizontalArrangement = Arrangement.End
-                        ) {
-                            IconButton(onClick = {
-                                toolDetailViewModel.isEditingToolInfo.value = true
-                            }) {
-                                Column {
-
-                                    Icon(Icons.Filled.Edit, "Edit user profile data.")
-                                    androidx.compose.material.Text(text = "Edit")
-                                }
-                            }
-                        }
-                    }
-                    if (isEditingToolInfo.not()) {
-                        StaticToolInfoScreen(tool!!, user, toolDetailViewModel, true)
-                    } else {
-                        EditingToolInfoScreen(tool!!, toolDetailViewModel)
-                    }
-                } else
-                    StaticToolInfoScreen(tool!!, user, toolDetailViewModel)
+                if (tool!!.owner.id == user?.id)
+                    DropDownMenu(toolDetailViewModel, navController)
+                if (isEditingToolInfo) {
+                    EditingToolInfoScreen(tool!!, toolDetailViewModel)
+                } else {
+                    StaticToolInfoScreen(tool!!, user, toolDetailViewModel, true)
+                }
             }
         }
         latestErrorMessage != null -> {
@@ -175,15 +157,65 @@ fun ToolDetailScreen(toolId: String, user: User? = null) {
     }
 }
 
+@Composable
+fun DropDownMenu(toolDetailViewModel: ToolDetailViewModel, navController: NavController) {
+    val requestSentForThisTool by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
+    var expanded by remember { mutableStateOf(false) }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentSize(Alignment.TopEnd)
+    ) {
+        IconButton(onClick = { expanded = !expanded }) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = "More"
+            )
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Received requests") },
+                onClick = {
+                    navController.navigate(BorrowLendAppScreen.REQUESTS.name)
+                    expanded = false
+                },
+                trailingIcon = {
+                    Box(modifier = Modifier.size(20.dp)
+                        .background(Color.Red, CircleShape),
+                        contentAlignment = Alignment.Center){
+                        Text(text = "${requestSentForThisTool.filter{ !it.isRead }.size}", color = Color.White)
+                    }
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Conversations") },
+                onClick = {
+                    navController.navigate(BorrowLendAppScreen.REQUESTS.name)
+                    expanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Edit") },
+                onClick = {
+                    toolDetailViewModel.isEditingToolInfo.value = true
+                    expanded = false
+                }
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun StaticToolInfoScreen(chosenTool: ToolDetailUiState, user: User?, toolDetailViewModel: ToolDetailViewModel, userOwnThisTool: Boolean = false) {
     var zoomIn: String? by remember {
         mutableStateOf(null)
     }
-    var favorites: MutableState<Boolean> = rememberSaveable {
-        mutableStateOf(toolDetailViewModel.favorites.value.contains(chosenTool.id))
-    }
+
     val toolOwner = chosenTool.owner
     val toolAvailability: Boolean = userOwnThisTool || toolOwner.availableAtTheMoment && chosenTool.isAvailable
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
@@ -613,21 +645,25 @@ fun TakePictureOfTool(toolDetailViewModel: ToolDetailViewModel) {
 
 
 @Composable
-fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: ToolsViewModel, chosenTool: ToolDetailUiState) {
+fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: ToolDetailViewModel, chosenTool: ToolDetailUiState) {
     var tool_tmp: ToolDetailUiState by remember {
         mutableStateOf(chosenTool)
     }
     var favorites = remember {
         mutableStateListOf<String>()
     }
+
+    val requestSentForThisTool by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
+
+
     favorites.addAll(user?.favoriteTools ?: emptyList())
     val userOwnsThisTool = tool_tmp.owner.id == user?.id
     val toolOwner = tool_tmp.owner
     val toolAvailability: Boolean = userOwnsThisTool || toolOwner.availableAtTheMoment && tool_tmp.isAvailable
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
-    user?.let {
-        val borrowRequestAvailability = toolAvailability && it.borrowRequestSent.any { it.toolId == tool_tmp.id }.not()
-        if (it.id != tool_tmp.owner.id) {
+    user?.let { borrowerUser ->
+        if (borrowerUser.id != tool_tmp.owner.id) {
+            val borrowRequestAvailability = toolAvailability && requestSentForThisTool.any{ it.borrowerId == borrowerUser.id }.not()
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 Modifier.fillMaxWidth(),
@@ -639,7 +675,7 @@ fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: To
                     onClick = {
                         if (borrowRequestAvailability) {
                             tool_tmp = tool_tmp.copy(somethingIsChanging = true)
-                            toolDetailViewModel.onRequestToBorrow(it, tool_tmp) { // defaultTool is the ToolInApp instance while the rest is the UI states
+                            toolDetailViewModel.onRequestToBorrow(borrowerUser, tool_tmp) { // defaultTool is the ToolInApp instance while the rest is the UI states
                                 tool_tmp = tool_tmp.copy(somethingIsChanging = false)
                             }
                         }
@@ -672,11 +708,11 @@ fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: To
                         .clickable {
                             if (favorites.contains(tool_tmp.id)) { // This should be revised and use the single source of the truth.
                                 user.favoriteTools.remove(tool_tmp.id)
-                                toolDetailViewModel.onAddToolToUserFavorites(it)
+                                toolDetailViewModel.onAddToolToUserFavorites(borrowerUser)
                                 favorites.remove(tool_tmp.id)
                             } else {
                                 user.favoriteTools.add(tool_tmp.id)
-                                toolDetailViewModel.onAddToolToUserFavorites(it)
+                                toolDetailViewModel.onAddToolToUserFavorites(borrowerUser)
                                 favorites.add(tool_tmp.id)
 
                             }

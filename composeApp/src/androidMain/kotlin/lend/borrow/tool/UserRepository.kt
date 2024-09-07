@@ -23,6 +23,7 @@ class UserRepository(val application: Application) {
     )
     val db: FirebaseFirestore = Firebase.firestore
     val dbUsers: CollectionReference = db.collection("Users")
+    val dbRequests: CollectionReference = db.collection("Requests")
     companion object {
     private lateinit var instance: UserRepository
         fun getInstance(application: Application): UserRepository {
@@ -61,8 +62,40 @@ class UserRepository(val application: Application) {
                 }
             }
         } ?: callBack()
-
     }
+
+
+    suspend fun fetchUserSentRequests(borrowerId: String?, toolId: String?): List<BorrowRequest> {
+            val result = dbRequests.where {
+                "borrowerId".equalTo(borrowerId)
+            }.where {
+                "toolId".equalTo(toolId)
+            }.get()
+
+        val tmpListOfRequestsSent = mutableListOf<BorrowRequest>()
+        result.documents.forEach { dataSnapShot ->
+                dataSnapShot.data<BorrowRequest>().let { request ->
+                    tmpListOfRequestsSent.add(request)
+                }
+            }
+        return tmpListOfRequestsSent
+    }
+
+
+    suspend fun fetchReceivedRequestsForTool(toolId: String?): List<BorrowRequest> {
+        val result = dbRequests.where {
+            "toolId".equalTo(toolId)
+        }.get()
+
+        val tmpListOfRequests = mutableListOf<BorrowRequest>()
+        result.documents.forEach { dataSnapShot ->
+            dataSnapShot.data<BorrowRequest>().let { request ->
+                tmpListOfRequests.add(request)
+            }
+        }
+        return tmpListOfRequests
+    }
+
 
     private suspend fun getCurrentUser(): User? = authService.auth.currentUser?.let {
         val result = dbUsers.document(it.uid).get()
@@ -95,13 +128,8 @@ class UserRepository(val application: Application) {
 
     suspend fun onRequestToBorrow(borrower: User, tool: ToolInApp, callBack: () -> Unit) {
         val tmpRequest = BorrowRequest(borrower.id, tool.owner.id, tool.id)
-        val tmpOwnerReceivedRequests = tool.owner.borrowRequestReceived.toMutableList()
-        tmpOwnerReceivedRequests.add(tmpRequest)
-        val tmpBorrowerSentRequests = borrower.borrowRequestSent.toMutableList()
-        tmpBorrowerSentRequests.add(tmpRequest)
-        dbUsers.document(tool.owner.id).update("borrowRequestReceived" to tmpOwnerReceivedRequests)
-        dbUsers.document(borrower.id).update("borrowRequestSent" to tmpBorrowerSentRequests)
-        fetchUser(borrower.id, callBack) // Borrower user is the user who is logged in.
+        dbRequests.add(tmpRequest)
+        callBack()
     }
 
     suspend fun updateUserInfo(newUserInfo: User, oldUserInfo: User, progressCallBack: () -> Unit) {

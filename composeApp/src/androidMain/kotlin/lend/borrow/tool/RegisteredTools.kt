@@ -1,6 +1,5 @@
 package lend.borrow.tool
 
-import ToolDetailUiState
 import User
 import android.Manifest
 import android.app.Activity
@@ -9,6 +8,7 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,11 +17,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
@@ -29,6 +31,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
@@ -59,14 +62,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat.getColor
@@ -207,112 +213,140 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ToolInfoCard(
-    tool: ToolDetailUiState,
     user: User?,
-    toolsViewModel: ToolsViewModel,
+    toolDetailViewModel: ToolDetailViewModel,
     navController: NavController
 ) {
-    var tool_tmp: ToolDetailUiState by remember {
-        mutableStateOf(tool)
-    }
-    var favorites = remember {
-        mutableStateListOf<String>()
-    }
-    favorites.addAll(user?.favoriteTools ?: emptyList())
+    val tool by toolDetailViewModel.tool.collectAsState()
+    tool?.let { tool_tmp ->
+        var favorites = remember {
+            mutableStateListOf<String>()
+        }
 
-    val userOwnsThisTool = tool_tmp.owner.id == user?.id
-    val toolOwner = tool_tmp.owner
-    val toolAvailability: Boolean = userOwnsThisTool || (toolOwner.availableAtTheMoment && tool.isAvailable)
-    val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight()
-            .padding(
-                15.dp
-            )
-            .clickable(user != null) {
-                if (user != null)
-                    navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool_tmp.id}")
-            },
-        colors = CardDefaults.cardColors(Color.White),
-        elevation = CardDefaults.cardElevation(if (tool_tmp.isAvailable) 5.dp else 0.dp)
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(15.dp)
+        favorites.addAll(user?.favoriteTools ?: emptyList())
+
+        val numberOfRequests by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
+        val userOwnsThisTool = tool_tmp.owner.id == user?.id
+        val toolOwner = tool_tmp.owner
+        val toolAvailability: Boolean = userOwnsThisTool || (toolOwner.availableAtTheMoment && tool_tmp.isAvailable)
+        val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
+
+        val iconSize = 25.dp
+        val offsetInPx = LocalDensity.current.run { (iconSize / 2).roundToPx() }
+        Box(modifier = Modifier
+            .padding(iconSize / 2)
+            .background(Color.Transparent),
+            contentAlignment = Alignment.TopEnd
         ) {
-            AnimatedVisibility(true) {
-                LazyRow(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    items(tool_tmp.imageUrlsRefMap.keys.toList(),
-                        key = {
-                            it
-                        }) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .padding(5.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            AsyncImage(
-                                model = it, // This should be changed to a UiState data class as in ToolDetailScreen
-                                modifier = Modifier
-                                    .alpha(toolAlpha)
-                                    .border(1.dp, Color.LightGray),
-                                contentDescription = "",
-                                contentScale = ContentScale.Fit
-                            )
-                        }
-                    }
-
-                }
-            }
-            Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
-            Text(text = tool_tmp.name, modifier = Modifier.padding(5.dp))
-            Text(text = "Description: ", fontWeight = FontWeight.Bold)
-            Text(text = tool_tmp.description,  maxLines = 3,modifier = Modifier.padding(5.dp), overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Justify)
-            if (tool_tmp.tags?.isNotEmpty() == true)
-                Spacer(modifier = Modifier.height(11.dp))
-            FlowRow(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .wrapContentHeight()
-                    .padding(top = 5.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    .clickable(user != null) {
+                        if (user != null)
+                            navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool_tmp.id}")
+                    },
+                colors = CardDefaults.cardColors(Color.White),
+                elevation = CardDefaults.cardElevation(if (tool_tmp.isAvailable) 5.dp else 0.dp)
             ) {
-                tool_tmp.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
-                    Box(
-                        modifier = Modifier
-                            .wrapContentSize()
-                            .background(
-                                color = Color.Black,
-                                shape = RoundedCornerShape(5.dp)
-                            )
-                            .alpha(toolAlpha)
-                            .padding(7.dp),
-                        Alignment.Center
-                    ) {
-                        Text(
-                            text = tag.trim(),
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 5.dp),
-                            color = Color.White
-                        )
+                Column(
+                    Modifier
+                        .padding(5.dp)
+                        .fillMaxWidth()
+                        .padding(20.dp)
+                ) {
+                    AnimatedVisibility(true) {
+                        LazyRow(
+                            Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            items(tool_tmp.imageUrlsRefMap.keys.toList(),
+                                key = {
+                                    it
+                                }) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .padding(5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AsyncImage(
+                                        model = it, // This should be changed to a UiState data class as in ToolDetailScreen
+                                        modifier = Modifier
+                                            .alpha(toolAlpha)
+                                            .border(1.dp, Color.LightGray),
+                                        contentDescription = "",
+                                        contentScale = ContentScale.Fit
+                                    )
+                                }
+                            }
+
+                        }
                     }
+                    Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
+                    Text(text = tool_tmp.name, modifier = Modifier.padding(5.dp))
+                    Text(text = "Description: ", fontWeight = FontWeight.Bold)
+                    Text(text = tool_tmp.description,  maxLines = 3,modifier = Modifier.padding(5.dp), overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Justify)
+                    if (tool_tmp.tags?.isNotEmpty() == true)
+                        Spacer(modifier = Modifier.height(11.dp))
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight()
+                            .padding(top = 5.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        tool_tmp.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
+                            Box(
+                                modifier = Modifier
+                                    .wrapContentSize()
+                                    .background(
+                                        color = Color.Black,
+                                        shape = RoundedCornerShape(5.dp)
+                                    )
+                                    .alpha(toolAlpha)
+                                    .padding(7.dp),
+                                Alignment.Center
+                            ) {
+                                Text(
+                                    text = tag.trim(),
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.padding(horizontal = 5.dp),
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    UserBorrowRequestButtonAndFavoritesView(user, toolDetailViewModel, tool_tmp)
+
                 }
             }
-
-            UserBorrowRequestButtonAndFavoritesView(user, toolsViewModel, tool_tmp)
-
+            if (numberOfRequests.isNotEmpty())
+                Box(modifier = Modifier
+                    .offset {
+                        IntOffset(x = -offsetInPx, y = -offsetInPx)
+                    }
+                    .shadow(4.dp, shape = CircleShape)
+                    .background(Color.Yellow, CircleShape)
+                    .border(
+                        BorderStroke(2.dp, Color(getColor(LocalContext.current, R.color.primary))),
+                        CircleShape
+                    )
+                    .size(iconSize),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = numberOfRequests.size.toString(), color = Color.Black)
+                }
         }
     }
+
+
+
+
 }
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -412,14 +446,14 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                 .fillMaxWidth()
                 .fillMaxHeight()
                 .pullRefresh(pullRefreshState)
-                .background(backgroundColor.copy(alpha = 0.2f))
+                .background(backgroundColor.copy(alpha = 0.2f)),
+            contentPadding = PaddingValues(top = 10.dp)
         ) {
-            this.
             items(data,
                 key = {
                     it.id
                 }) {item ->
-                ToolInfoCard(item, loggedInUser, toolsViewModel, navController)
+                ToolInfoCard(loggedInUser, ToolDetailViewModel((LocalContext.current as Activity).application, toolId = item.id, userId = loggedInUser?.id),navController)
             }
         }
     }

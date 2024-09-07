@@ -41,9 +41,11 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import lend.borrow.tool.AuthenticationService
 import lend.borrow.tool.BorrowLendAppScreen
+import lend.borrow.tool.ConversationsScreen
 import lend.borrow.tool.LoginScreen
 import lend.borrow.tool.LoginViewModel
 import lend.borrow.tool.RegisteredToolsScreen
+import lend.borrow.tool.RequestsScreen
 import lend.borrow.tool.ToolDetailScreen
 import lend.borrow.tool.UserProfile
 
@@ -116,7 +118,7 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     ) {
                     currentScreenName.value = BorrowLendAppScreen.TOOL_DETAIL
                     it.arguments?.getString("toolId")?.let {toolId ->
-                        ToolDetailScreen(toolId, user.value)
+                        ToolDetailScreen(toolId, user.value, navController)
                     }
                 }
 
@@ -130,7 +132,16 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                             isEditingUserProfile = shouldEditUserProfile
                         )
                     }
+                }
 
+                composable(BorrowLendAppScreen.REQUESTS.name) {
+                    currentScreenName.value = BorrowLendAppScreen.REQUESTS
+                    RequestsScreen()
+                }
+
+                composable(BorrowLendAppScreen.CONVERSATION.name) {
+                    currentScreenName.value = BorrowLendAppScreen.CONVERSATION
+                    ConversationsScreen()
                 }
 
             }
