@@ -93,19 +93,25 @@ import lend.borrow.tool.utility.CustomDialogWithResult
 @Composable
 fun ToolDetailScreen(toolId: String, user: User? = null, navController: NavController) {
     val application = (LocalContext.current as Activity).application
-    val toolDetailViewModel: ToolDetailViewModel = viewModel {
+    val toolDetailViewModel: ToolDetailViewModel = viewModel(key = ToolDetailViewModel::class.java.name) {
         ToolDetailViewModel(application, toolId, user?.id)
     }
+    SideEffect {
+        toolDetailViewModel.initiateViewModel()
+    }
+    ToolDetailContent(toolDetailViewModel = toolDetailViewModel, user = user, navController)
+}
+
+@Composable
+fun ToolDetailContent(toolDetailViewModel: ToolDetailViewModel, user: User?, navController: NavController) {
     val tool by toolDetailViewModel.tool.collectAsState()
-    val uploadInProgress by toolDetailViewModel.isProcessing.collectAsState()
-    val latestProgressMessage by toolDetailViewModel.progressMessage.collectAsState()
     val latestErrorMessage by toolDetailViewModel.latestErrorMessage.collectAsState()
     val isEditingToolInfo by toolDetailViewModel.isEditingToolInfo.collectAsState()
     when {
         tool != null -> {
             Column {
                 if (tool!!.owner.id == user?.id)
-                    DropDownMenu(toolDetailViewModel, navController)
+                    DropDownMenu(tool!!.id, toolDetailViewModel, navController)
                 if (isEditingToolInfo) {
                     EditingToolInfoScreen(tool!!, toolDetailViewModel)
                 } else {
@@ -122,6 +128,12 @@ fun ToolDetailScreen(toolId: String, user: User? = null, navController: NavContr
         }
         else -> {}
     }
+    ProgressbarView(toolDetailViewModel)
+}
+@Composable
+fun ProgressbarView(toolDetailViewModel: ToolDetailViewModel) {
+    val uploadInProgress by toolDetailViewModel.isProcessing.collectAsState()
+    val latestProgressMessage by toolDetailViewModel.progressMessage.collectAsState()
     if (uploadInProgress) {
         Box(Modifier
             .fillMaxSize()
@@ -158,9 +170,10 @@ fun ToolDetailScreen(toolId: String, user: User? = null, navController: NavContr
 }
 
 @Composable
-fun DropDownMenu(toolDetailViewModel: ToolDetailViewModel, navController: NavController) {
+fun DropDownMenu(toolId: String, toolDetailViewModel: ToolDetailViewModel, navController: NavController) {
     val requestSentForThisTool by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
     var expanded by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -177,20 +190,28 @@ fun DropDownMenu(toolDetailViewModel: ToolDetailViewModel, navController: NavCon
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            DropdownMenuItem(
-                text = { Text("Received requests") },
-                onClick = {
-                    navController.navigate(BorrowLendAppScreen.REQUESTS.name)
-                    expanded = false
-                },
-                trailingIcon = {
-                    Box(modifier = Modifier.size(20.dp)
-                        .background(Color.Red, CircleShape),
-                        contentAlignment = Alignment.Center){
-                        Text(text = "${requestSentForThisTool.filter{ !it.isRead }.size}", color = Color.White)
+            if (requestSentForThisTool.isNotEmpty())
+                DropdownMenuItem(
+                    text = { Text("Received requests") },
+                    onClick = {
+                        navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${toolId}")
+                        expanded = false
+                    },
+                    trailingIcon = {
+                        if (requestSentForThisTool.filter { !it.isRead }.isNotEmpty())
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .background(Color.Red, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "${requestSentForThisTool.filter { !it.isRead }.size}",
+                                color = Color.White
+                            )
+                        }
                     }
-                }
-            )
+                )
             DropdownMenuItem(
                 text = { Text("Conversations") },
                 onClick = {
@@ -663,7 +684,7 @@ fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: To
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     user?.let { borrowerUser ->
         if (borrowerUser.id != tool_tmp.owner.id) {
-            val borrowRequestAvailability = toolAvailability && requestSentForThisTool.any{ it.borrowerId == borrowerUser.id }.not()
+            val borrowRequestAvailability = toolAvailability && requestSentForThisTool.any { it.borrower.id == borrowerUser.id }.not()
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 Modifier.fillMaxWidth(),

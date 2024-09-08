@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat.getColor
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -45,9 +46,9 @@ import lend.borrow.tool.ConversationsScreen
 import lend.borrow.tool.LoginScreen
 import lend.borrow.tool.LoginViewModel
 import lend.borrow.tool.RegisteredToolsScreen
-import lend.borrow.tool.RequestsScreen
 import lend.borrow.tool.ToolDetailScreen
 import lend.borrow.tool.UserProfile
+import lend.borrow.tool.requests.RequestsScreen
 
 
 @Composable
@@ -100,12 +101,13 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
             ) {
                 composable(BorrowLendAppScreen.LOGIN.name) {
                     currentScreenName.value = BorrowLendAppScreen.LOGIN
-                    LoginScreen(
-                        Modifier
-                            .fillMaxSize(),
-                        loginViewModel,
-                        navController
-                    )
+                    if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                        LoginScreen(
+                            Modifier
+                                .fillMaxSize(),
+                            loginViewModel,
+                            navController
+                        )
                 }
                 composable(BorrowLendAppScreen.TOOLS.name) {
                     currentScreenName.value = BorrowLendAppScreen.TOOLS
@@ -118,25 +120,33 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     ) {
                     currentScreenName.value = BorrowLendAppScreen.TOOL_DETAIL
                     it.arguments?.getString("toolId")?.let {toolId ->
-                        ToolDetailScreen(toolId, user.value, navController)
+                        if(it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                            ToolDetailScreen(toolId, user.value, navController)
                     }
                 }
 
                 composable(BorrowLendAppScreen.USER.name) {
                     currentScreenName.value = BorrowLendAppScreen.USER
-                    user.value?.let {
-                        UserProfile(
-                            it,
-                            loginViewModel = loginViewModel,
-                            navController = navController,
-                            isEditingUserProfile = shouldEditUserProfile
-                        )
-                    }
+                    if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                        user.value?.let {
+                            UserProfile(
+                                it,
+                                loginViewModel = loginViewModel,
+                                navController = navController,
+                                isEditingUserProfile = shouldEditUserProfile
+                            )
+                        }
                 }
 
-                composable(BorrowLendAppScreen.REQUESTS.name) {
+                composable(
+                    "${BorrowLendAppScreen.REQUESTS.name}/{toolId}",
+                    arguments = listOf(navArgument("toolId") { type = NavType.StringType })
+                ) {
                     currentScreenName.value = BorrowLendAppScreen.REQUESTS
-                    RequestsScreen()
+                    if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                        user.value?.let { loggedInUser ->
+                            RequestsScreen(it.arguments?.getString("toolId"), loggedInUser)
+                        }
                 }
 
                 composable(BorrowLendAppScreen.CONVERSATION.name) {

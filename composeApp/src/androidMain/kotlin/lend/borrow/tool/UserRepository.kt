@@ -13,6 +13,7 @@ import dev.gitlive.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
+import lend.borrow.tool.requests.BorrowRequestUiState
 import lend.borrow.tool.utility.distanceToOtherPoint
 import kotlin.math.cos
 
@@ -24,6 +25,9 @@ class UserRepository(val application: Application) {
     val db: FirebaseFirestore = Firebase.firestore
     val dbUsers: CollectionReference = db.collection("Users")
     val dbRequests: CollectionReference = db.collection("Requests")
+
+
+    val requests = MutableStateFlow<List<BorrowRequestUiState>>(emptyList())
     companion object {
     private lateinit var instance: UserRepository
         fun getInstance(application: Application): UserRepository {
@@ -65,11 +69,9 @@ class UserRepository(val application: Application) {
     }
 
 
-    suspend fun fetchUserSentRequests(borrowerId: String?, toolId: String?): List<BorrowRequest> {
+    suspend fun fetchRequestsForUser(borrowerId: String?): List<BorrowRequest> {
             val result = dbRequests.where {
                 "borrowerId".equalTo(borrowerId)
-            }.where {
-                "toolId".equalTo(toolId)
             }.get()
 
         val tmpListOfRequestsSent = mutableListOf<BorrowRequest>()
@@ -81,8 +83,14 @@ class UserRepository(val application: Application) {
         return tmpListOfRequestsSent
     }
 
+    suspend fun updateRequest(request: BorrowRequest, callback: () -> Unit) {
+        dbRequests.document(request.requestId).update(request)
+        callback()
+    }
 
-    suspend fun fetchReceivedRequestsForTool(toolId: String?): List<BorrowRequest> {
+
+    suspend fun fetchReceivedRequestsForTool(toolId: String?): List<BorrowRequestUiState> {
+        val toolRepo = ToolsRepository.getInstance(application)
         val result = dbRequests.where {
             "toolId".equalTo(toolId)
         }.get()
@@ -93,7 +101,27 @@ class UserRepository(val application: Application) {
                 tmpListOfRequests.add(request)
             }
         }
-        return tmpListOfRequests
+
+        // This transformation should be done in the ViewModel but there is currently not such a functionality for StateFlow
+        val tmpRequestsUiStates = mutableListOf<BorrowRequestUiState>()
+        tmpListOfRequests.forEach { request ->
+            toolRepo.getTool(request.toolId, this) { tool ->
+                getUserInfo(request.borrowerId)?.let { borrower ->
+                        tmpRequestsUiStates.add(
+                            BorrowRequestUiState(
+                                tool,
+                                borrower,
+                                isAccepted = request.isAccepted,
+                                isRead = request.isRead,
+                                initialRequest = request
+                            )
+                        )
+                }
+            }
+        }
+
+
+        return tmpRequestsUiStates
     }
 
 
@@ -127,8 +155,9 @@ class UserRepository(val application: Application) {
     }
 
     suspend fun onRequestToBorrow(borrower: User, tool: ToolInApp, callBack: () -> Unit) {
-        val tmpRequest = BorrowRequest(borrower.id, tool.owner.id, tool.id)
-        dbRequests.add(tmpRequest)
+        val tmpRef = dbRequests.document
+        val tmpRequest = BorrowRequest(requestId = tmpRef.id, borrowerId = borrower.id, ownerId = tool.owner.id, toolId = tool.id)
+        tmpRef.set(tmpRequest)
         callBack()
     }
 

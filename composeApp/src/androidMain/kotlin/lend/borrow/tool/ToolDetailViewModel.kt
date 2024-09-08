@@ -1,6 +1,5 @@
 package lend.borrow.tool
 
-import BorrowRequest
 import ToolDetailUiState
 import ToolInApp
 import User
@@ -12,6 +11,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import lend.borrow.tool.requests.BorrowRequestUiState
 import lend.borrow.tool.utility.toToolDetailUi
 import lend.borrow.tool.utility.toToolInApp
 
@@ -19,7 +19,7 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     val isSavingChanges = MutableStateFlow(false)
     val isFetchingTool = MutableStateFlow(false)
 
-    val requestsReceivedForThisTool = MutableStateFlow(emptyList<BorrowRequest>())
+    val requestsReceivedForThisTool = MutableStateFlow(emptyList<BorrowRequestUiState>())
 
     private lateinit var _toolDetailUiState: MutableStateFlow<ToolDetailUiState>
     private val _takingAPicture = MutableStateFlow(false)
@@ -28,7 +28,7 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
         _toolDetailUiState.asStateFlow()
     }
 
-    fun getRequestsForTool(tool: ToolInApp, borrowRequestsCallback: (List<BorrowRequest>) -> Unit) {
+    fun getRequestsReceivedForTool(tool: ToolInApp, borrowRequestsCallback: (List<BorrowRequestUiState>) -> Unit) {
         viewModelScope.launch {
             borrowRequestsCallback(userRepo.fetchReceivedRequestsForTool(tool.id))
         }
@@ -39,12 +39,6 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
             userRepo.onRequestToBorrow(user, toolToBorrow.defaultTool) {
                 getTool(toolToBorrow.id, callback)
             }
-        }
-    }
-
-    fun getRequestsReceivedForTool(tool: ToolInApp, borrowRequestsCallback: (List<BorrowRequest>) -> Unit) {
-        viewModelScope.launch {
-            borrowRequestsCallback(userRepo.fetchReceivedRequestsForTool(tool.id))
         }
     }
 
@@ -61,21 +55,15 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
                 }
             }.collect()
         }
+    }
 
-
+    fun initiateViewModel() {
         // In case, a registered user logs in then the tools should be fetched as soon as possible.
         // This also helps fetching tools more smoothly when registered user updates their address
         // or search radius. This call cannot be made from composable since it will cause an infinite
         // loop but the viewModel is only created once.
-            getTool(toolId) {
-                getRequestsReceivedForTool(it) {
-                    requestsReceivedForThisTool.update { it }
-                }
-            }
+        getTool(toolId)
     }
-
-
-
     fun updateUserFavoriteTools(user: User) {
         launchWithCatchingException {
             userRepo.updateUserFavoriteTools(user)
@@ -92,18 +80,18 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
                 isFetchingTool.update {true}
                 try {
                     _latestErrorMessage.value = null
-                    toolsRepo.getTool(toolId, {
+                    toolsRepo.getTool(toolId, userRepo) {
 
-                        getRequestsForTool(it) { requestList ->
+                        getRequestsReceivedForTool(it) { requestList ->
                             requestsReceivedForThisTool.update { requestList }
                             callback(it)
                         }
                         it.toToolDetailUi(application).also {toolDetailUiState ->
                             tool.value = toolDetailUiState
-                        initiateOwnerToolDetailEditingUiState(toolDetailUiState)
+                            initiateOwnerToolDetailEditingUiState(toolDetailUiState)
                         }
 
-                    }, userRepo)
+                    }
                 } catch (e: Exception) {
                     _latestErrorMessage.value = "Couldn't find your tool"
                     tool.value = null

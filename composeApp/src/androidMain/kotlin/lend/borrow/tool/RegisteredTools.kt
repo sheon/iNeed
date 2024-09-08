@@ -8,7 +8,6 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -213,10 +212,25 @@ fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ToolInfoCard(
+    toolId: String,
     user: User?,
-    toolDetailViewModel: ToolDetailViewModel,
     navController: NavController
 ) {
+    val application = (LocalContext.current as Activity).application
+    val toolDetailViewModel = viewModel(key = toolId) {
+        ToolDetailViewModel(application, toolId = toolId, userId = user?.id)
+    }
+
+    val primaryColor = Color(
+        getColor(
+            LocalContext.current, lend.borrow.tool.shared.R.color.primary
+        )
+    )
+
+    SideEffect {
+        toolDetailViewModel.initiateViewModel()
+    }
+
     val tool by toolDetailViewModel.tool.collectAsState()
     tool?.let { tool_tmp ->
         var favorites = remember {
@@ -231,7 +245,7 @@ fun ToolInfoCard(
         val toolAvailability: Boolean = userOwnsThisTool || (toolOwner.availableAtTheMoment && tool_tmp.isAvailable)
         val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
 
-        val iconSize = 25.dp
+        val iconSize = 30.dp
         val offsetInPx = LocalDensity.current.run { (iconSize / 2).roundToPx() }
         Box(modifier = Modifier
             .padding(iconSize / 2)
@@ -243,8 +257,9 @@ fun ToolInfoCard(
                     .fillMaxWidth()
                     .wrapContentHeight()
                     .clickable(user != null) {
-                        if (user != null)
+                        if (user != null) {
                             navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool_tmp.id}")
+                        }
                     },
                 colors = CardDefaults.cardColors(Color.White),
                 elevation = CardDefaults.cardElevation(if (tool_tmp.isAvailable) 5.dp else 0.dp)
@@ -332,14 +347,14 @@ fun ToolInfoCard(
                     }
                     .shadow(4.dp, shape = CircleShape)
                     .background(Color.Yellow, CircleShape)
-                    .border(
-                        BorderStroke(2.dp, Color(getColor(LocalContext.current, R.color.primary))),
-                        CircleShape
-                    )
+//                    .border(
+//                        BorderStroke(0.5.dp, Color(getColor(LocalContext.current, R.color.primary))),
+//                        CircleShape
+//                    )
                     .size(iconSize),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = numberOfRequests.size.toString(), color = Color.Black)
+                    Text(text = numberOfRequests.size.toString(), color = primaryColor, fontWeight = FontWeight.Bold)
                 }
         }
     }
@@ -453,7 +468,7 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                 key = {
                     it.id
                 }) {item ->
-                ToolInfoCard(loggedInUser, ToolDetailViewModel((LocalContext.current as Activity).application, toolId = item.id, userId = loggedInUser?.id),navController)
+                ToolInfoCard(item.id, loggedInUser, navController)
             }
         }
     }

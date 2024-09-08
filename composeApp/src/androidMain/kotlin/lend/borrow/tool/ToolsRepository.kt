@@ -63,7 +63,7 @@ class ToolsRepository(val application: Application) {
         }
     }
 
-    suspend fun getTool(toolId: String, retrievedData: (ToolInApp) -> Unit = {}, userRepository: UserRepository) {
+    suspend fun getTool(toolId: String, userRepository: UserRepository, retrievedData: suspend (ToolInApp) -> Unit = {}) {
             dbTools.document(toolId).let { toolRef ->
                 val tool = toolRef.get().data<ToolInFireStore>()
                 userRepository.getUserInfo(tool.owner)?.let {
