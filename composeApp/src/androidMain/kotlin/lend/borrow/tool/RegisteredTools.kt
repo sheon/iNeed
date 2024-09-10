@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,7 +31,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Tab
 import androidx.compose.material.TabRow
@@ -40,6 +38,7 @@ import androidx.compose.material.TabRowDefaults
 import androidx.compose.material.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
 import androidx.compose.material3.Card
@@ -82,6 +81,7 @@ import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
 import lend.borrow.tool.utility.hasLocationPermission
+import lend.borrow.tool.utility.shimmerBrush
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -163,16 +163,6 @@ fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController) {
         TabScreen(toolsViewModel, navController)
 
     }
-
-    if (anythingInProgress)
-        Box(modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(
-                modifier = Modifier
-                    .wrapContentSize(),
-                color = Color(getColor(LocalContext.current, R.color.primary))
-            )
-        }
 }
 
 fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {
@@ -216,54 +206,69 @@ fun ToolInfoCard(
     user: User?,
     navController: NavController
 ) {
+
     val application = (LocalContext.current as Activity).application
     val toolDetailViewModel = viewModel(key = toolId) {
         ToolDetailViewModel(application, toolId = toolId, userId = user?.id)
     }
-
+    val tool by toolDetailViewModel.tool.collectAsState()
+    if (toolDetailViewModel.toolNeedUpdate)
+        toolDetailViewModel.initiateViewModel()
     val primaryColor = Color(
         getColor(
-            LocalContext.current, lend.borrow.tool.shared.R.color.primary
+            LocalContext.current, R.color.primary
         )
     )
 
-    SideEffect {
-        toolDetailViewModel.initiateViewModel()
+    val inProgress by toolDetailViewModel.isReadyToBeShown.collectAsState()
+
+    var favorites = remember {
+        mutableStateListOf<String>()
     }
 
-    val tool by toolDetailViewModel.tool.collectAsState()
-    tool?.let { tool_tmp ->
-        var favorites = remember {
-            mutableStateListOf<String>()
-        }
+    favorites.addAll(user?.favoriteTools ?: emptyList())
 
-        favorites.addAll(user?.favoriteTools ?: emptyList())
+    val numberOfRequests by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
+    val userOwnsThisTool = tool?.owner?.id == user?.id
+    val toolOwner = tool?.owner
+    val toolAvailability: Boolean =
+        userOwnsThisTool || (toolOwner?.availableAtTheMoment == true && tool?.isAvailable == true)
+    val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
 
-        val numberOfRequests by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
-        val userOwnsThisTool = tool_tmp.owner.id == user?.id
-        val toolOwner = tool_tmp.owner
-        val toolAvailability: Boolean = userOwnsThisTool || (toolOwner.availableAtTheMoment && tool_tmp.isAvailable)
-        val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
+    val iconSize = 30.dp
+    val offsetInPx = LocalDensity.current.run { (iconSize / 2).roundToPx() }
 
-        val iconSize = 30.dp
-        val offsetInPx = LocalDensity.current.run { (iconSize / 2).roundToPx() }
-        Box(modifier = Modifier
+    Box(
+        modifier = Modifier
             .padding(iconSize / 2)
             .background(Color.Transparent),
-            contentAlignment = Alignment.TopEnd
+        contentAlignment = if (inProgress) Alignment.Center else Alignment.TopEnd
+    ) {
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .clickable(user != null) {
+                    if (user != null && tool != null) {
+                        navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool!!.id}")
+                    }
+                },
+            colors = CardDefaults.cardColors(Color.White),
+            elevation = CardDefaults.cardElevation(if (tool?.isAvailable == true) 5.dp else 0.dp)
         ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .clickable(user != null) {
-                        if (user != null) {
-                            navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool_tmp.id}")
-                        }
-                    },
-                colors = CardDefaults.cardColors(Color.White),
-                elevation = CardDefaults.cardElevation(if (tool_tmp.isAvailable) 5.dp else 0.dp)
-            ) {
+            if (inProgress)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            shimmerBrush(targetValue = 1300f, showShimmer = inProgress),
+                            RoundedCornerShape(2.dp)
+                        )
+                ) {
+                    Spacer(modifier = Modifier.size(50.dp))
+                }
+            else
                 Column(
                     Modifier
                         .padding(5.dp)
@@ -277,7 +282,7 @@ fun ToolInfoCard(
                                 .height(200.dp),
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            items(tool_tmp.imageUrlsRefMap.keys.toList(),
+                            items(tool?.imageUrlsRefMap?.keys?.toList() ?: emptyList(),
                                 key = {
                                     it
                                 }) {
@@ -301,10 +306,16 @@ fun ToolInfoCard(
                         }
                     }
                     Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
-                    Text(text = tool_tmp.name, modifier = Modifier.padding(5.dp))
+                    Text(text = tool?.name ?: "", modifier = Modifier.padding(5.dp))
                     Text(text = "Description: ", fontWeight = FontWeight.Bold)
-                    Text(text = tool_tmp.description,  maxLines = 3,modifier = Modifier.padding(5.dp), overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Justify)
-                    if (tool_tmp.tags?.isNotEmpty() == true)
+                    Text(
+                        text = tool?.description ?: "",
+                        maxLines = 3,
+                        modifier = Modifier.padding(5.dp),
+                        overflow = TextOverflow.Ellipsis,
+                        textAlign = TextAlign.Justify
+                    )
+                    if (tool?.tags?.isNotEmpty() == true)
                         Spacer(modifier = Modifier.height(11.dp))
                     FlowRow(
                         modifier = Modifier
@@ -314,7 +325,7 @@ fun ToolInfoCard(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        tool_tmp.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
+                        tool?.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
                             Box(
                                 modifier = Modifier
                                     .wrapContentSize()
@@ -336,30 +347,29 @@ fun ToolInfoCard(
                         }
                     }
 
-                    UserBorrowRequestButtonAndFavoritesView(user, toolDetailViewModel, tool_tmp)
-
-                }
-            }
-            if (numberOfRequests.isNotEmpty())
-                Box(modifier = Modifier
-                    .offset {
-                        IntOffset(x = -offsetInPx, y = -offsetInPx)
+                    tool?.let {
+                        UserBorrowRequestButtonAndFavoritesView(user, toolDetailViewModel, it)
                     }
-                    .shadow(4.dp, shape = CircleShape)
-                    .background(Color.Yellow, CircleShape)
-//                    .border(
-//                        BorderStroke(0.5.dp, Color(getColor(LocalContext.current, R.color.primary))),
-//                        CircleShape
-//                    )
-                    .size(iconSize),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = numberOfRequests.size.toString(), color = primaryColor, fontWeight = FontWeight.Bold)
+
                 }
         }
+        if (numberOfRequests.isNotEmpty())
+            Box(modifier = Modifier
+                .offset {
+                    IntOffset(x = -offsetInPx, y = -offsetInPx)
+                }
+                .shadow(4.dp, shape = CircleShape)
+                .background(Color.Yellow, CircleShape)
+                .size(iconSize),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = numberOfRequests.size.toString(),
+                    color = primaryColor,
+                    fontWeight = FontWeight.Bold
+                )
+            }
     }
-
-
 
 
 }
@@ -376,11 +386,13 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
     var tabIndex by rememberSaveable { mutableStateOf(0) }
 
     val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
-        toolsViewModel.refreshData(tabIndex == 1)
+        toolsViewModel.refreshData()
     })
+
 
     val tabs = listOf("Others", "Yours")
 
+    val dataToShowForChosenTab = toolsViewModel.filterDataForTab(tabIndex == 1)
     Column(modifier = Modifier.fillMaxWidth()) {
         loggedInUser?.let {
             TabRow(
@@ -401,7 +413,6 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                         selectedContentColor = Color.Yellow,
                         onClick = {
                             if(tabIndex != index) {
-                                toolsViewModel.getToolsFromRemote(isOwnerOfTools = index == 1)
                                 tabIndex = index
                             }
                         }
@@ -456,21 +467,23 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
             .fillMaxWidth()
             .background(backgroundColor))
 
-        LazyColumn(
-            Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .pullRefresh(pullRefreshState)
-                .background(backgroundColor.copy(alpha = 0.2f)),
-            contentPadding = PaddingValues(top = 10.dp)
+        Box(modifier = Modifier.fillMaxWidth()
+            .fillMaxHeight()
+            .pullRefresh(pullRefreshState)
+            .background(backgroundColor.copy(alpha = 0.2f))
+            .padding(top = 10.dp)
         ) {
-            items(data,
-                key = {
-                    it.id
-                }) {item ->
-                ToolInfoCard(item.id, loggedInUser, navController)
+            LazyColumn {
+                items(dataToShowForChosenTab,
+                    key = {
+                        it.id
+                    }) {item ->
+                    ToolInfoCard(item.id, loggedInUser, navController)
+                }
             }
+            PullRefreshIndicator(fetchingToolsInProgress, pullRefreshState, Modifier.align(Alignment.TopCenter))
         }
+
     }
 }
 

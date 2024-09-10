@@ -12,7 +12,7 @@ import lend.borrow.tool.BaseViewModel
 import lend.borrow.tool.ToolsRepository
 import lend.borrow.tool.UserRepository
 
-class RequestsViewModel(application: Application, userId: String, toolId: String? ): BaseViewModel() {
+class RequestsViewModel(application: Application, userId: String?, toolId: String? ): BaseViewModel() {
 
 
     val toolsRepo by lazy {
@@ -24,38 +24,41 @@ class RequestsViewModel(application: Application, userId: String, toolId: String
     }
     val requests = MutableStateFlow(emptyList<BorrowRequestUiState>())
 
-    fun getRequestsForTool(toolId: String?) {
+
+    fun getRequests(toolId: String? = null, userId: String? = null) {
         val tmpRequests = mutableListOf<BorrowRequestUiState>()
         viewModelScope.launch {
-            userRepo.fetchReceivedRequestsForTool(toolId).forEach { request ->
-                tmpRequests.add(request)
+            when {
+                toolId != null -> {
+                    toolsRepo.getToolWithRequests(toolId, userRepo) { fetchedTool, fetchedRequests ->
+                        fetchedRequests.forEach { request ->
+                            tmpRequests.add(request)
+                        }
+                    }
+                }
+                userId != null -> {
+                    userRepo.fetchRequestsSentByUser(userId).forEach { request ->
+                        tmpRequests.add(request)
+                    }
+                }
+
+
             }
-            requests.update { tmpRequests.toList() }
+                        requests.update { tmpRequests.toList() }
         }
     }
 
-    fun getTool(toolId: String, callback: (ToolInApp) -> Unit) {
-        viewModelScope.launch {
-            toolsRepo.getTool(toolId, userRepo, callback)
-        }
-    }
-
-    fun getUserInfo(userId: String, callback: (User?) -> Unit) {
-        viewModelScope.launch {
-            callback(userRepo.getUserInfo(userId))
-        }
-    }
 
 
 
     init {
-        getRequestsForTool(toolId)
+        getRequests(toolId, userId)
     }
 
     fun onRequestReadUpdated(request: BorrowRequest) {
         viewModelScope.launch {
             userRepo.updateRequest(request.copy(isRead = true)) {
-                getRequestsForTool(request.toolId)
+                getRequests(request.toolId)
             }
         }
     }
@@ -63,7 +66,7 @@ class RequestsViewModel(application: Application, userId: String, toolId: String
     fun onRequestAccepted(accepted: Boolean, request: BorrowRequest) {
         viewModelScope.launch {
             userRepo.updateRequest(request.copy(isAccepted = accepted)) {
-                getRequestsForTool(request.toolId)
+                getRequests(request.toolId)
             }
         }
     }

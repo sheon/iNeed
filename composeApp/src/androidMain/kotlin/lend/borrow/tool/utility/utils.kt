@@ -41,7 +41,6 @@ import lend.borrow.tool.UserRepository
 import lend.borrow.tool.shared.R
 
 suspend fun ToolInFireStore.toToolInApp(
-    id:String,
     owner: User,
     userRepo: UserRepository,
     toolsRepo: ToolsRepository
@@ -52,7 +51,7 @@ suspend fun ToolInFireStore.toToolInApp(
 }
 
 fun ToolInApp.toToolInFireStore(): ToolInFireStore { // This may be avoided if we have one data class for tool.
-    return ToolInFireStore(name = name, description = description, imageReferences = imageRefUrlMap.keys.toList(), tags = tags, available = available, owner = owner.id, borrower = borrower?.id, instruction = instruction)
+    return ToolInFireStore(id = id, name = name, description = description, imageReferences = imageRefUrlMap.keys.toList(), tags = tags, available = available, owner = owner.id, borrower = borrower?.id, instruction = instruction)
 }
 
 fun ToolDetailUiState.toToolInApp() = defaultTool.copy(name = name, description = description.ifEmpty { null }, imageRefUrlMap = images, tags = tags?.replace(" ", "")?.split(",")?.filterNot { it =="" } ?: emptyList()).also {

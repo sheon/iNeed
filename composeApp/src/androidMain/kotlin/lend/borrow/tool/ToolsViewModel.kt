@@ -36,6 +36,7 @@ open class ToolsViewModel(private val application: Application, open val userId:
         userRepo.currentUser
     }
 
+
     init {
         viewModelScope.launch {
             combine(
@@ -55,12 +56,12 @@ open class ToolsViewModel(private val application: Application, open val userId:
         }
     }
     var anonymousUserLocation: GeoPoint? = null
-    fun refreshData(isOwnerOfTools: Boolean = false) {
+    fun refreshData() {
         launchWithCatchingException {
             userRepo.fetchUser(userId) {
                 _toolListAroundUser.clear()
                 userRepo.refreshData()
-                getToolsFromRemote(anonymousUserLocation, isOwnerOfTools)
+                getToolsFromRemote(anonymousUserLocation, true)
             }
         }
     }
@@ -73,21 +74,23 @@ open class ToolsViewModel(private val application: Application, open val userId:
         }
     }
 
-    private var showingOwnersTools = false
-    fun getToolsFromRemote(location: GeoPoint? = null, isOwnerOfTools: Boolean = false)  {
-        showingOwnersTools = isOwnerOfTools
+    fun getToolsFromRemote(location: GeoPoint? = null, isRefreshing: Boolean = false)  {
         anonymousUserLocation = location
         launchWithCatchingException {
             if (!fetchingToolsInProgress.value) {
                 _toolListAroundUser.clear()
                 fetchingToolsInProgress.value = true
                 toolsRepo.getAvailableTools(location, {
-                    _toolListAroundUser.addAll(it.filter { loggedInUser.value == null || loggedInUser.value?.ownTools?.contains(it.id) == showingOwnersTools }.map { it.toToolDetailUi(application) })
+                    _toolListAroundUser.addAll(it.map { it.toToolDetailUi(application) })
                     toolListAroundUser.value = _toolListAroundUser
                     fetchingToolsInProgress.value = false
-                }, userRepo)
+                }, userRepo, isRefreshing)
             }
         }
+    }
+
+    fun filterDataForTab(showingOwnersTools: Boolean): List<ToolDetailUiState> {
+        return _toolListAroundUser.filter { loggedInUser.value == null || loggedInUser.value?.ownTools?.contains(it.id) == showingOwnersTools }
     }
 
     fun onAddToolToUserFavorites(user: User) {

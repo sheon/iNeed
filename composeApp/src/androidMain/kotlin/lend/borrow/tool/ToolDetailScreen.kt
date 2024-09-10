@@ -54,6 +54,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -96,7 +97,7 @@ fun ToolDetailScreen(toolId: String, user: User? = null, navController: NavContr
     val toolDetailViewModel: ToolDetailViewModel = viewModel(key = ToolDetailViewModel::class.java.name) {
         ToolDetailViewModel(application, toolId, user?.id)
     }
-    SideEffect {
+    LaunchedEffect(Unit) {
         toolDetailViewModel.initiateViewModel()
     }
     ToolDetailContent(toolDetailViewModel = toolDetailViewModel, user = user, navController)

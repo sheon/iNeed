@@ -19,6 +19,8 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     val isSavingChanges = MutableStateFlow(false)
     val isFetchingTool = MutableStateFlow(false)
 
+    val isReadyToBeShown = MutableStateFlow(false)
+
     val requestsReceivedForThisTool = MutableStateFlow(emptyList<BorrowRequestUiState>())
 
     private lateinit var _toolDetailUiState: MutableStateFlow<ToolDetailUiState>
@@ -28,11 +30,12 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
         _toolDetailUiState.asStateFlow()
     }
 
-    fun getRequestsReceivedForTool(tool: ToolInApp, borrowRequestsCallback: (List<BorrowRequestUiState>) -> Unit) {
-        viewModelScope.launch {
-            borrowRequestsCallback(userRepo.fetchReceivedRequestsForTool(tool.id))
-        }
-    }
+//    fun getRequestsReceivedForTool(tool: ToolInApp, borrowRequestsCallback: (List<BorrowRequestUiState>) -> Unit) {
+//        requestsReceivedForThisTool.update { emptyList() }
+//        viewModelScope.launch {
+//            borrowRequestsCallback(userRepo.fetchReceivedRequestsForTool(tool.id))
+//        }
+//    }
 
     fun onRequestToBorrow(user: User, toolToBorrow: ToolDetailUiState, callback: (ToolInApp) -> Unit) {
         launchWithCatchingException {
@@ -44,17 +47,25 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
 
     var tool = MutableStateFlow<ToolDetailUiState?>(null)
     var isEditingToolInfo = MutableStateFlow(false)
+    val toolNeedUpdate: Boolean
+        get() = toolsRepo.toolValidityMap[toolId] == false
+
     init {
         viewModelScope.launch {
             combine(isSavingChanges, isFetchingTool) { saving, fetching ->
-                _isProcessing.update { saving || fetching }
+                isReadyToBeShown.update { saving || fetching }
                 _progressMessage.value = when{
                     saving -> application.getString(R.string.saving)
                     fetching -> application.getString(R.string.fetching)
                     else -> ""
                 }
             }.collect()
+
+
+
         }
+
+        initiateViewModel()
     }
 
     fun initiateViewModel() {
@@ -62,7 +73,9 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
         // This also helps fetching tools more smoothly when registered user updates their address
         // or search radius. This call cannot be made from composable since it will cause an infinite
         // loop but the viewModel is only created once.
-        getTool(toolId)
+        getTool(toolId) {
+            isFetchingTool.update {false}
+        }
     }
     fun updateUserFavoriteTools(user: User) {
         launchWithCatchingException {
@@ -75,31 +88,32 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     }
 
     private fun getTool(toolId: String, callback: (ToolInApp) -> Unit = {}) {
-        if (!isFetchingTool.value)
+        if (!isFetchingTool.value){
+            tool.value = null
+            requestsReceivedForThisTool.value = emptyList()
             viewModelScope.launch {
-                isFetchingTool.update {true}
                 try {
+                    isFetchingTool.update { true }
                     _latestErrorMessage.value = null
-                    toolsRepo.getTool(toolId, userRepo) {
-
-                        getRequestsReceivedForTool(it) { requestList ->
-                            requestsReceivedForThisTool.update { requestList }
-                            callback(it)
-                        }
-                        it.toToolDetailUi(application).also {toolDetailUiState ->
-                            tool.value = toolDetailUiState
+                    toolsRepo.getToolWithRequests(toolId, userRepo) { receivedTool, requestList ->
+                        callback(receivedTool)
+                        isFetchingTool.update { false }
+                        requestsReceivedForThisTool.update { requestList }
+                        receivedTool.toToolDetailUi(application).also { toolDetailUiState ->
                             initiateOwnerToolDetailEditingUiState(toolDetailUiState)
+                            tool.update { toolDetailUiState }
                         }
 
                     }
                 } catch (e: Exception) {
                     _latestErrorMessage.value = "Couldn't find your tool"
                     tool.value = null
+                    isFetchingTool.update { false }
                 } finally {
                     isEditingToolInfo.value = false
-                    isFetchingTool.update { false }
                 }
             }
+        }
     }
 
     fun onToolNameChanged(newValue: String){

@@ -3,6 +3,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ToolInFireStore(
+    val id: String,
     val name: String,
     val description: String? = null,
     val imageReferences: List<String>, // Document references for Images stored on Firebase storage
@@ -12,7 +13,7 @@ data class ToolInFireStore(
     val borrower: String? = null, // User Id
     val instruction: String? = null
 ) {
-    constructor() : this(name = "", imageReferences =  emptyList(), owner = "")
+    constructor() : this(id = "", name = "", imageReferences =  emptyList(), owner = "")
 }
 
 @Serializable
