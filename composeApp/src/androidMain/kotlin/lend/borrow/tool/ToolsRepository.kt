@@ -1,6 +1,7 @@
 package lend.borrow.tool
 
 
+import BorrowRequest
 import ToolInApp
 import ToolInFireStore
 import User
@@ -15,7 +16,6 @@ import dev.gitlive.firebase.firestore.GeoPoint
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.storage.File
 import dev.gitlive.firebase.storage.storage
-import lend.borrow.tool.requests.BorrowRequestUiState
 import lend.borrow.tool.utility.toToolInApp
 import lend.borrow.tool.utility.toToolInFireStore
 import java.util.UUID
@@ -73,7 +73,7 @@ class ToolsRepository(val application: Application) {
         }
     }
 
-    suspend fun getToolWithRequests(toolId: String, userRepository: UserRepository, retrievedData: suspend (ToolInApp, List<BorrowRequestUiState>) -> Unit = { _, _ ->}) {
+    suspend fun getToolWithRequests(toolId: String, userRepository: UserRepository, retrievedData: suspend (ToolInApp, List<BorrowRequest>) -> Unit = { _, _ ->}) {
             dbTools.document(toolId).let { toolRef ->
                 val tool = toolRef.get().data<ToolInFireStore>()
                 userRepository.getUserInfo(tool.owner)?.let {

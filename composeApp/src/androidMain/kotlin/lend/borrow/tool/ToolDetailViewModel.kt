@@ -1,5 +1,6 @@
 package lend.borrow.tool
 
+import BorrowRequest
 import ToolDetailUiState
 import ToolInApp
 import User
@@ -11,7 +12,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import lend.borrow.tool.requests.BorrowRequestUiState
 import lend.borrow.tool.utility.toToolDetailUi
 import lend.borrow.tool.utility.toToolInApp
 
@@ -21,7 +21,7 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
 
     val isReadyToBeShown = MutableStateFlow(false)
 
-    val requestsReceivedForThisTool = MutableStateFlow(emptyList<BorrowRequestUiState>())
+    val requestsReceivedForThisTool = MutableStateFlow(emptyList<BorrowRequest>())
 
     private lateinit var _toolDetailUiState: MutableStateFlow<ToolDetailUiState>
     private val _takingAPicture = MutableStateFlow(false)

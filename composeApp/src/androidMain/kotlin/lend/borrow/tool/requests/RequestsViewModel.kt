@@ -20,17 +20,19 @@ class RequestsViewModel(application: Application, val loggedInUser: User, privat
             when {
                 toolId != null -> {
                     val tmpMap = mutableMapOf<String, BorrowRequestUiState>()
-
-                    toolsRepo.getToolWithRequests(toolId, userRepo) { fetchedTool, fetchedRequests ->
-                        println("Ehsan: RequestsVM getRequests getToolWithRequests receivedReqs: ${fetchedRequests.size}")
+                    tmpMap.putAll(requestsSentToThisUser.value)
+                    toolsRepo.getToolWithRequests(toolId, userRepo) { _, fetchedRequests ->
+                        println("Ehsan: RequestsVM getRequests getToolWithRequests receivedReqs: ${fetchedRequests.map { it.requestId }}")
                         fetchedRequests.forEach { request ->
-                            requestsSentToThisUser.update {
-                                tmpMap[request.initialRequest.requestId] = request
-                                tmpMap
+                            println("Ehsan: RequestsVM getRequests fetchedRequests.forEach: ${request.requestId}")
+                            request.toBorrowRequestUiState(userRepo) { borrowRequestUiState ->
+                                println("Ehsan: RequestsVM getRequests borrowRequestUiState: ${borrowRequestUiState.initialRequest.requestId}")
+                                tmpMap[request.requestId] = borrowRequestUiState
+                                println("Ehsan: RequestsVM getRequests tmpMap: ${tmpMap.keys}")
                             }
                         }
                     }
-                    tmpMap.putAll(requestsSentToThisUser.value)
+                    requestsSentToThisUser.update { tmpMap }
                 }
                 else -> {
                     userRepo.fetchAllRequestsForUser(userId) { receivedReqs, sentReqs ->

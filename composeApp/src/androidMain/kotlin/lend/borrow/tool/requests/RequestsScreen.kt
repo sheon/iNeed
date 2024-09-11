@@ -113,7 +113,8 @@ fun RequestsScreen(toolId: String?, loggedInUser: User, showUserSentRequests: Bo
                     .height(1.dp)
                     .background(primaryColor)
             )
-            requestsViewModel.onRequestReadUpdated(item.initialRequest)
+            if (!item.isRead)
+                requestsViewModel.onRequestReadUpdated(item.initialRequest)
         }
     }
 

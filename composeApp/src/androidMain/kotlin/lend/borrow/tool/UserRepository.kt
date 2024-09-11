@@ -140,7 +140,7 @@ class UserRepository(val application: Application) {
     }
 
 
-    suspend fun fetchReceivedRequestsForTool(tool: ToolInApp): List<BorrowRequestUiState> {
+    suspend fun fetchReceivedRequestsForTool(tool: ToolInApp): List<BorrowRequest> {
         val result = dbRequests.where {
             "toolId".equalTo(tool.id)
         }.get()
@@ -152,26 +152,8 @@ class UserRepository(val application: Application) {
             }
         }
 
-        // This transformation should be done in the ViewModel but there is currently not such a functionality for StateFlow
-        val tmpRequestsUiStates = mutableListOf<BorrowRequestUiState>()
-        tmpListOfRequests.forEach { request ->
-            getUserInfo(request.requesterId)?.let { borrower ->
-                tmpRequestsUiStates.add(
-                    BorrowRequestUiState(
-                        tool,
-                        borrower,
-                        isAccepted = request.isAccepted,
-                        isRead = request.isRead,
-                        initialRequest = request
-                    )
-                )
-            }
-        }
-
-
-        return tmpRequestsUiStates
+        return tmpListOfRequests
     }
-
 
     private suspend fun getCurrentUser(): User? = authService.auth.currentUser?.let {
         val result = dbUsers.document(it.uid).get()

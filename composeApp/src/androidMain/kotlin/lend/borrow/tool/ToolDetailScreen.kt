@@ -627,7 +627,7 @@ fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: To
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     user?.let { borrowerUser ->
         if (borrowerUser.id != tool_tmp.owner.id) {
-            val borrowRequestAvailability = toolAvailability && requestSentForThisTool.any { it.borrower.id == borrowerUser.id }.not()
+            val borrowRequestAvailability = toolAvailability && requestSentForThisTool.any { it.requestId == borrowerUser.id }.not()
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 Modifier.fillMaxWidth(),
