@@ -47,8 +47,8 @@ import lend.borrow.tool.LoginScreen
 import lend.borrow.tool.LoginViewModel
 import lend.borrow.tool.RegisteredToolsScreen
 import lend.borrow.tool.ToolDetailScreen
-import lend.borrow.tool.UserProfile
 import lend.borrow.tool.requests.RequestsScreen
+import lend.borrow.tool.userprofile.UserProfileScreen
 
 
 @Composable
@@ -101,7 +101,6 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
             ) {
                 composable(BorrowLendAppScreen.LOGIN.name) {
                     currentScreenName.value = BorrowLendAppScreen.LOGIN
-                    if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
                         LoginScreen(
                             Modifier
                                 .fillMaxSize(),
@@ -129,7 +128,7 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     currentScreenName.value = BorrowLendAppScreen.USER
                     if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
                         user.value?.let {
-                            UserProfile(
+                            UserProfileScreen(
                                 it,
                                 loginViewModel = loginViewModel,
                                 navController = navController,
@@ -139,13 +138,19 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                 }
 
                 composable(
-                    "${BorrowLendAppScreen.REQUESTS.name}/{toolId}",
-                    arguments = listOf(navArgument("toolId") { type = NavType.StringType })
+                    "${BorrowLendAppScreen.REQUESTS.name}/{toolId}/{isSentByUser}",
+                    arguments = listOf(navArgument("toolId") {
+                        type = NavType.StringType
+                        nullable = true
+                    },
+                        navArgument("isSentByUser") {
+                            type = NavType.BoolType
+                        })
                 ) {
                     currentScreenName.value = BorrowLendAppScreen.REQUESTS
                     if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
                         user.value?.let { loggedInUser ->
-                            RequestsScreen(it.arguments?.getString("toolId"), loggedInUser)
+                            RequestsScreen(it.arguments?.getString("toolId"), loggedInUser, it.arguments?.getBoolean("isSentByUser"))
                         }
                 }
 

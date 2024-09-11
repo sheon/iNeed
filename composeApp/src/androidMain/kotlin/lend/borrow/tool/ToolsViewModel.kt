@@ -14,20 +14,12 @@ import kotlinx.coroutines.launch
 import lend.borrow.tool.utility.getCurrentLocation
 import lend.borrow.tool.utility.toToolDetailUi
 
-open class ToolsViewModel(private val application: Application, open val userId: String?) : BaseViewModel() {
+open class ToolsViewModel(private val application: Application, open val userId: String?) : BaseViewModel(application) {
 
     var fetchingToolsInProgress = MutableStateFlow(false)
     var fetchingLocationInProgress = MutableStateFlow(false)
 
     var anythingInProgress = MutableStateFlow(false)
-
-    val toolsRepo by lazy {
-        ToolsRepository.getInstance(application)
-    }
-
-    val userRepo by lazy {
-        UserRepository.getInstance(application)
-    }
 
     var _toolListAroundUser = mutableListOf<ToolDetailUiState>()
     var toolListAroundUser = MutableStateFlow<List<ToolDetailUiState>>(emptyList())

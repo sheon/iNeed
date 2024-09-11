@@ -41,17 +41,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Card
 import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.DropdownMenu
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -89,6 +86,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import lend.borrow.tool.shared.R
 import lend.borrow.tool.utility.CustomDialogWithResult
+import lend.borrow.tool.utility.DropDownMenu
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -111,12 +109,12 @@ fun ToolDetailContent(toolDetailViewModel: ToolDetailViewModel, user: User?, nav
     when {
         tool != null -> {
             Column {
-                if (tool!!.owner.id == user?.id)
-                    DropDownMenu(tool!!.id, toolDetailViewModel, navController)
-                if (isEditingToolInfo) {
-                    EditingToolInfoScreen(tool!!, toolDetailViewModel)
-                } else {
+                if (!isEditingToolInfo){
+                    if (tool!!.owner.id == user?.id)
+                        DropDownMenu(tool!!.id, toolDetailViewModel, navController)
                     StaticToolInfoScreen(tool!!, user, toolDetailViewModel, true)
+                } else {
+                    EditingToolInfoScreen(tool!!, toolDetailViewModel)
                 }
             }
         }
@@ -170,66 +168,6 @@ fun ProgressbarView(toolDetailViewModel: ToolDetailViewModel) {
     }
 }
 
-@Composable
-fun DropDownMenu(toolId: String, toolDetailViewModel: ToolDetailViewModel, navController: NavController) {
-    val requestSentForThisTool by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
-    var expanded by remember { mutableStateOf(false) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentSize(Alignment.TopEnd)
-    ) {
-        IconButton(onClick = { expanded = !expanded }) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "More"
-            )
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            if (requestSentForThisTool.isNotEmpty())
-                DropdownMenuItem(
-                    text = { Text("Received requests") },
-                    onClick = {
-                        navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${toolId}")
-                        expanded = false
-                    },
-                    trailingIcon = {
-                        if (requestSentForThisTool.filter { !it.isRead }.isNotEmpty())
-                        Box(
-                            modifier = Modifier
-                                .size(20.dp)
-                                .background(Color.Red, CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "${requestSentForThisTool.filter { !it.isRead }.size}",
-                                color = Color.White
-                            )
-                        }
-                    }
-                )
-            DropdownMenuItem(
-                text = { Text("Conversations") },
-                onClick = {
-                    navController.navigate(BorrowLendAppScreen.REQUESTS.name)
-                    expanded = false
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("Edit") },
-                onClick = {
-                    toolDetailViewModel.isEditingToolInfo.value = true
-                    expanded = false
-                }
-            )
-        }
-    }
-}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -245,7 +183,7 @@ fun StaticToolInfoScreen(chosenTool: ToolDetailUiState, user: User?, toolDetailV
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(15.dp)
+            .padding(horizontal = 15.dp)
     ) {
         AnimatedVisibility(true) {
             LazyRow(
@@ -342,9 +280,10 @@ fun EditingToolInfoScreen(
     Column(
         Modifier
             .fillMaxWidth()
-            .padding(15.dp)
+            .padding(horizontal = 15.dp)
             .verticalScroll(scrollState)
     ) {
+        Spacer(Modifier.size(10.dp))
         AnimatedVisibility(true) {
             LazyRow(
                 Modifier
@@ -502,6 +441,7 @@ fun EditingToolInfoScreen(
                 Text(text = AnnotatedString("Delete this tool"))
             }
         }
+        Spacer(Modifier.size(10.dp))
     }
     zoomIn?.let {
         ZoomInImage(it) {
@@ -661,7 +601,9 @@ fun TakePictureOfTool(toolDetailViewModel: ToolDetailViewModel) {
         }
     } else {
         // Request a permission
-        permissionLauncher.launch(Manifest.permission.CAMERA)
+        SideEffect {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
     }
 }
 

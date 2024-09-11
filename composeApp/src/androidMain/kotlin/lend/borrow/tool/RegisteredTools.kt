@@ -471,7 +471,6 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
             .fillMaxHeight()
             .pullRefresh(pullRefreshState)
             .background(backgroundColor.copy(alpha = 0.2f))
-            .padding(top = 10.dp)
         ) {
             LazyColumn {
                 items(dataToShowForChosenTab,

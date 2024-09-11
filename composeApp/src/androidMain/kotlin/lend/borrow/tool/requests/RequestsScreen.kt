@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,19 +28,20 @@ import androidx.core.content.ContextCompat.getColor
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
-fun RequestsScreen(toolId: String?, loggedInUser: User) {
+fun RequestsScreen(toolId: String?, loggedInUser: User, showUserSentRequests: Boolean?) {
     val application = (LocalContext.current as Activity).application
     val requestsViewModel: RequestsViewModel = viewModel {
-        RequestsViewModel(application, loggedInUser.id, toolId)
+        RequestsViewModel(application, loggedInUser, toolId)
     }
 
-    val requests by requestsViewModel.requests.collectAsState()
+    val requests by if (showUserSentRequests == false) requestsViewModel.requestsSentToThisUser.collectAsState() else requestsViewModel.requestsSentByThisUser.collectAsState()
+
 
     LazyColumn {
-        items(requests,
+        items(requests.values.toList(),
             key = { item ->
-                item.borrower.name
-            }) {item ->
+                item.initialRequest.requestId
+            }) { item ->
 
             val primaryColor = Color(
                 getColor(
@@ -48,19 +50,19 @@ fun RequestsScreen(toolId: String?, loggedInUser: User) {
             )
             val backgroundColor = if (item.isRead) Color.White else primaryColor.copy(alpha = 0.2f)
 
-            if (item.isAccepted != true)
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(backgroundColor),
-                    verticalArrangement = Arrangement.SpaceBetween,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 10.dp)
+                    .background(backgroundColor),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
 
-                    Spacer(modifier = Modifier.size(10.dp))
-                    Text(text = "${item.borrower.name} wants to borrow ${item.tool.name}")
-                    Spacer(modifier = Modifier.size(10.dp))
-                    if (item.isAccepted != false)
+                Text(text = "${item.borrower.name} wants to borrow ${item.tool.name}")
+                Spacer(modifier = Modifier.size(10.dp))
+                when (item.isAccepted) {
+                    null -> {
                         Button(
                             onClick = {
                                 requestsViewModel.onRequestAccepted(true, item.initialRequest)
@@ -71,17 +73,40 @@ fun RequestsScreen(toolId: String?, loggedInUser: User) {
                         ) {
                             Text(text = "Accept")
                         }
-                    Button(
-                        enabled = item.isAccepted != false,
-                        onClick = {
-                            requestsViewModel.onRequestAccepted(false, item.initialRequest)
-                        },
-                        colors = ButtonDefaults.buttonColors(Color.Red, Color.White)
-                    ) {
-                        Text(text = if (item.isAccepted != false) "Reject" else "Rejected")
+                        Button(
+                            onClick = {
+                                requestsViewModel.onRequestAccepted(false, item.initialRequest)
+                            },
+                            colors = ButtonDefaults.buttonColors(Color.Red, Color.White)
+                        ) {
+                            Text(text = "Reject")
+                        }
                     }
-                    Spacer(modifier = Modifier.size(10.dp))
+
+                    false -> {
+                        Button(
+                            enabled = false,
+                            onClick = {},
+                            colors = ButtonDefaults.buttonColors(Color.Red, Color.White)
+                        ) {
+                            Text(text = "Rejected")
+                        }
+                    }
+
+                    true -> {
+                        Button(
+                            onClick = {
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                primaryColor, Color.White
+                            )
+                        ) {
+                            Text(text = "Go to conversation")
+                        }
+                    }
                 }
+
+            }
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
