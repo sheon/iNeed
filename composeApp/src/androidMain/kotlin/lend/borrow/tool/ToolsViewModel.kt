@@ -4,22 +4,14 @@ import ToolDetailUiState
 import User
 import android.app.Application
 import android.content.Context
-import androidx.lifecycle.viewModelScope
 import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 import lend.borrow.tool.utility.getCurrentLocation
 import lend.borrow.tool.utility.toToolDetailUi
 
 open class ToolsViewModel(private val application: Application, open val userId: String?) : BaseViewModel(application) {
 
     var fetchingToolsInProgress = MutableStateFlow(false)
-    var fetchingLocationInProgress = MutableStateFlow(false)
-
-    var anythingInProgress = MutableStateFlow(false)
 
     var _toolListAroundUser = mutableListOf<ToolDetailUiState>()
     var toolListAroundUser = MutableStateFlow<List<ToolDetailUiState>>(emptyList())
@@ -30,14 +22,6 @@ open class ToolsViewModel(private val application: Application, open val userId:
 
 
     init {
-        viewModelScope.launch {
-            combine(
-                fetchingToolsInProgress,
-                fetchingLocationInProgress
-            ) { fetchingTools, fetchingLocatio ->
-                anythingInProgress.update { fetchingTools || fetchingLocatio }
-            }.collect()
-        }
         // In case, a registered user logs in then the tools should be fetched as soon as possible.
         // This also helps fetching tools more smoothly when registered user updates their address
         // or search radius. This call cannot be made from composable since it will cause an infinite
@@ -59,9 +43,7 @@ open class ToolsViewModel(private val application: Application, open val userId:
     }
 
     fun getAnonymousUserLocation(context: Context, callback: (Double, Double) -> Unit) {
-        fetchingLocationInProgress.value = true
         getCurrentLocation(context){ lat, long ->
-            fetchingLocationInProgress.value = false
             callback(lat, long)
         }
     }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -139,7 +140,6 @@ fun RegisteredToolsScreen(
 @Composable
 fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController) {
     val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
-    val anythingInProgress by toolsViewModel.anythingInProgress.collectAsState(false)
 
     Column(
         Modifier
@@ -472,7 +472,9 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
             .pullRefresh(pullRefreshState)
             .background(backgroundColor.copy(alpha = 0.2f))
         ) {
-            LazyColumn {
+            LazyColumn(
+                contentPadding = PaddingValues(top = 5.dp)
+            ) {
                 items(dataToShowForChosenTab,
                     key = {
                         it.id

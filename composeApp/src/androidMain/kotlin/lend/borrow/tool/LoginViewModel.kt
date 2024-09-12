@@ -77,13 +77,6 @@ class LoginViewModel(
         }
 
     }
-
-    fun signOut() {
-        launchWithCatchingException {
-            userRepo.signOut()
-            _uiState.update { LoginUiState() }
-        }
-    }
 }
 
 data class LoginUiState(

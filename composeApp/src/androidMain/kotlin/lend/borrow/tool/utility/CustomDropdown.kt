@@ -1,9 +1,9 @@
 package lend.borrow.tool.utility
 
-import User
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
@@ -46,53 +46,56 @@ fun DropDownMenu(toolId: String?, toolDetailViewModel: ToolDetailViewModel, navC
             )
         }
 
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            if (requestSentForThisTool.isNotEmpty())
+        Box(modifier = Modifier.wrapContentSize()
+            .padding(top = 35.dp, start = 20.dp)) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                if (requestSentForThisTool.isNotEmpty())
+                    DropdownMenuItem(
+                        text = { Text( if (isOwner) "Received requests" else "Your request") },
+                        onClick = {
+                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${toolId}/${isOwner}")
+                            expanded = false
+                        },
+                        trailingIcon = {
+                            if (requestSentForThisTool.filter { !it.isRead }.isNotEmpty())
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .background(Color.Red, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${requestSentForThisTool.filter { !it.isRead }.size}",
+                                        color = Color.White
+                                    )
+                                }
+                        }
+                    )
                 DropdownMenuItem(
-                    text = { Text("Received requests") },
+                    text = { Text("Conversations") },
                     onClick = {
-                        navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${toolId}/${false}")
-                        expanded = false
-                    },
-                    trailingIcon = {
-                        if (requestSentForThisTool.filter { !it.isRead }.isNotEmpty())
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .background(Color.Red, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${requestSentForThisTool.filter { !it.isRead }.size}",
-                                    color = Color.White
-                                )
-                            }
-                    }
-                )
-            DropdownMenuItem(
-                text = { Text("Conversations") },
-                onClick = {
-                    navController.navigate(BorrowLendAppScreen.REQUESTS.name)
-                    expanded = false
-                }
-            )
-            if (isOwner)
-                DropdownMenuItem(
-                    text = { Text("Edit") },
-                    onClick = {
-                        toolDetailViewModel.isEditingToolInfo.value = true
+                        navController.navigate(BorrowLendAppScreen.REQUESTS.name)
                         expanded = false
                     }
                 )
+                if (isOwner)
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = {
+                            toolDetailViewModel.isEditingToolInfo.value = true
+                            expanded = false
+                        }
+                    )
+            }
         }
     }
 }
 
 @Composable
-fun DropDownMenu(loggedInUser: User, userProfileViewModel: UserProfileViewModel, navController: NavController) {
+fun DropDownMenu(userProfileViewModel: UserProfileViewModel, navController: NavController) {
     val requestSentByThisUser by userProfileViewModel.requestsSentByThisUser.collectAsState()
     val requestSentToThisUser by userProfileViewModel.requestsSentToThisUser.collectAsState()
     var expanded by remember { mutableStateOf(false) }
@@ -109,56 +112,68 @@ fun DropDownMenu(loggedInUser: User, userProfileViewModel: UserProfileViewModel,
             )
         }
 
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
-            if (requestSentByThisUser.isNotEmpty())
+        Box(modifier = Modifier.wrapContentSize()
+            .padding(top = 35.dp, start = 20.dp)) {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                if (requestSentByThisUser.isNotEmpty())
+                    DropdownMenuItem(
+                        text = { Text("Sent requests") },
+                        onClick = {
+                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${true}")
+                            expanded = false
+                        }
+                    )
+
+                if (requestSentToThisUser.isNotEmpty())
+                    DropdownMenuItem(
+                        text = { Text("Received requests") },
+                        onClick = {
+                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${false}")
+                            expanded = false
+                        },
+                        trailingIcon = {
+                            if (requestSentToThisUser.values.filter { !it.isRead }.isNotEmpty())
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .background(Color.Red, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${requestSentToThisUser.values.filter { !it.isRead }.size}",
+                                        color = Color.White
+                                    )
+                                }
+                        }
+                    )
+
                 DropdownMenuItem(
-                    text = { Text("Sent requests") },
+                    text = { Text("Conversations") },
                     onClick = {
-                        navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${true}")
+                        navController.navigate(BorrowLendAppScreen.REQUESTS.name)
                         expanded = false
                     }
                 )
-
-            if (requestSentToThisUser.isNotEmpty())
                 DropdownMenuItem(
-                    text = { Text("Received requests") },
+                    text = { Text("Edit") },
                     onClick = {
-                        navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${false}")
+                        userProfileViewModel.isEditingUserProfile.value = true
                         expanded = false
-                    },
-                    trailingIcon = {
-                        if (requestSentToThisUser.values.filter { !it.isRead }.isNotEmpty())
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .background(Color.Red, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${requestSentToThisUser.values.filter { !it.isRead }.size}",
-                                    color = Color.White
-                                )
-                            }
                     }
                 )
-
-            DropdownMenuItem(
-                text = { Text("Conversations") },
-                onClick = {
-                    navController.navigate(BorrowLendAppScreen.REQUESTS.name)
-                    expanded = false
-                }
-            )
-            DropdownMenuItem(
-                text = { Text("Edit") },
-                onClick = {
-                    userProfileViewModel.isEditingUserProfile.value = true
-                    expanded = false
-                }
-            )
+                DropdownMenuItem(
+                    text = { Text("Sign out") },
+                    onClick = {
+                        userProfileViewModel.signOut()
+                        navController.navigate(BorrowLendAppScreen.LOGIN.name)
+                        expanded = false
+                    }
+                )
+            }
         }
+
     }
 }

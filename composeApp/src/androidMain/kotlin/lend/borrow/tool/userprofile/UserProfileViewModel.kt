@@ -110,6 +110,11 @@ open class UserProfileViewModel( val loggedInUser: User, val application: Applic
         }
     }
 
+    fun signOut() {
+        launchWithCatchingException {
+            userRepo.signOut()
+        }
+    }
     fun uploadTool(toolName: String, toolDescription: String, tags: List<String>, images: List<String>, ownerId: String) {
         uploadInProgress.value = true
         launchWithCatchingException {

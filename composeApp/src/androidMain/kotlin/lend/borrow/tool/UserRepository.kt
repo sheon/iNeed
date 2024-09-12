@@ -114,9 +114,9 @@ class UserRepository(val application: Application) {
             }.get()
         else
             dbRequests
-                .orderBy("requestForUserId")
+                .orderBy("requesterId")
                 .where{
-                    "requestForUserId".equalTo(requestForUserId)
+                    "requesterId".equalTo(requestForUserId)
                 }
                 .where{
                     "toolId".equalTo(tool.id)

@@ -130,7 +130,6 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                         user.value?.let {
                             UserProfileScreen(
                                 it,
-                                loginViewModel = loginViewModel,
                                 navController = navController,
                                 isEditingUserProfile = shouldEditUserProfile
                             )
