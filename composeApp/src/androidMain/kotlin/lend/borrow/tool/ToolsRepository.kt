@@ -16,6 +16,10 @@ import dev.gitlive.firebase.firestore.GeoPoint
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.storage.File
 import dev.gitlive.firebase.storage.storage
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import lend.borrow.tool.utility.toToolInApp
 import lend.borrow.tool.utility.toToolInFireStore
 import java.util.UUID
@@ -39,60 +43,79 @@ class ToolsRepository(val application: Application) {
     }
 
     val toolValidityMap = mutableMapOf<String, Boolean>()
-    suspend fun getAvailableTools(location: GeoPoint? = null, retrievedData: (List<ToolInApp>) -> Unit, userRepository: UserRepository, isRefreshed: Boolean = false) {
+    suspend fun getAvailableTools(
+        location: GeoPoint? = null,
+        retrievedData: (List<ToolInApp>) -> Unit,
+        userRepository: UserRepository,
+        isRefreshed: Boolean = false
+    ) {
         val userToolsMap = mutableMapOf<User, MutableList<ToolInApp>>()
         userRepository.getNearByOwners(location) { nearByOwners ->
-            nearByOwners.forEach { owner ->
-                userToolsMap[owner] = mutableListOf()
-                owner.ownTools.forEach {
-                    //Todo: Maybe it will be more efficient to loop over the owners and get their tools instead of getting all of them
-                    dbTools.document(it).get().let { toolDoc ->
-                        //val tmpOwnerIds = nearByOwners.associateBy { it.id }
-                        if (toolDoc.exists) {
-                            val imageUrlList = mutableListOf<String>()
-                            val c: ToolInFireStore = toolDoc.data<ToolInFireStore>()
-                            c.imageReferences.forEach {
-                                imageUrlList.add(storage.reference(it).getDownloadUrl())
+            coroutineScope {
+                nearByOwners.map { owner ->
+                    async {
+                        userToolsMap[owner] = mutableListOf()
+                        owner.ownTools.forEach {
+                            dbTools.document(it).get().let { toolDoc ->
+                                if (toolDoc.exists) {
+                                    val imageUrlList = mutableListOf<String>()
+                                    val c: ToolInFireStore = toolDoc.data<ToolInFireStore>()
+
+                                    c.imageReferences.map {
+                                        async {
+                                            imageUrlList.add(storage.reference(it).getDownloadUrl())
+                                        }
+                                    }.awaitAll()
+                                    val transformedTool = async {
+                                            c.toToolInApp(
+                                                owner,
+                                                userRepository,
+                                                this@ToolsRepository
+                                            )
+                                    } .await()
+                                    userToolsMap[owner]?.add(transformedTool)
+                                    toolValidityMap[transformedTool.id] = !isRefreshed
+                                } else {
+                                    Log.i(Tag, "No data found in Database")
+                                }
                             }
-                            val transformedTool =
-                                c.toToolInApp(
-                                    owner,
-                                    userRepository,
-                                    this
-                                ) //The id shall be save in Firebase when the tool is created. This won't be necessary. Maybe userId can be enough as well!
-                            userToolsMap[owner]?.add(transformedTool) // This ID will be used only in the app after the tool is fetched and there is not need to store it on FireStore.
-                            toolValidityMap[transformedTool.id] = !isRefreshed
-                        } else {
-                            Log.i(Tag, "No data found in Database")
                         }
                     }
-                }
-
+                }.awaitAll()
             }
             retrievedData.invoke(userToolsMap.flatMap { it.value })
         }
     }
 
     suspend fun getToolWithRequests(toolId: String, requestsForUserId: String?, userRepository: UserRepository, retrievedData: suspend (ToolInApp, List<BorrowRequest>) -> Unit = { _, _ ->}) {
-            dbTools.document(toolId).let { toolRef ->
-                val tool = toolRef.get().data<ToolInFireStore>()
-                userRepository.getUserInfo(tool.owner)?.let {
-                    val transformedTool = tool.toToolInApp(it, userRepo = userRepository, this)
-                    val borrowRequests = userRepository.fetchReceivedRequestsForToolAndUser(transformedTool, requestsForUserId)
-                    retrievedData.invoke(transformedTool, borrowRequests)
-                    toolValidityMap[transformedTool.id] = true
+        coroutineScope {
+            val toolRef = dbTools.document(toolId)
+            val tool = toolRef.get().data<ToolInFireStore>()
+            lateinit var toolTransformationTask: Deferred<ToolInApp>
+            userRepository.getUserInfo(tool.owner)?.let {
+                toolTransformationTask = async {
+                    tool.toToolInApp(it, userRepo = userRepository, this@ToolsRepository)
                 }
+                val borrowRequestsTask = async {
+                    userRepository.fetchReceivedRequestsForToolAndUser(toolId, requestsForUserId)
+                }
+                val transformedTool = toolTransformationTask.await()
+                val borrowRequests = borrowRequestsTask.await()
+                retrievedData.invoke(transformedTool, borrowRequests)
+                toolValidityMap[transformedTool.id] = true
             }
+
+
+        }
     }
 
     suspend fun getTool(toolId: String, userRepository: UserRepository, retrievedData: suspend (ToolInApp) -> Unit = {}) {
-        dbTools.document(toolId).let { toolRef ->
+        val toolRef = dbTools.document(toolId)
             val tool = toolRef.get().data<ToolInFireStore>()
             userRepository.getUserInfo(tool.owner)?.let {
                 val transformedTool = tool.toToolInApp(it, userRepo = userRepository, this)
                 retrievedData.invoke(transformedTool)
             }
-        }
     }
     suspend fun deleteTools(tools: List<String>) { // Tool IDs
         for (tool in tools) {

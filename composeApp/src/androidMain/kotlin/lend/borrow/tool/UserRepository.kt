@@ -13,7 +13,6 @@ import dev.gitlive.firebase.firestore.firestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
-import lend.borrow.tool.requests.BorrowRequestUiState
 import lend.borrow.tool.utility.distanceToOtherPoint
 import kotlin.math.cos
 
@@ -27,7 +26,6 @@ class UserRepository(val application: Application) {
     val dbRequests: CollectionReference = db.collection("Requests")
 
 
-    val requests = MutableStateFlow<List<BorrowRequestUiState>>(emptyList())
     companion object {
     private lateinit var instance: UserRepository
         fun getInstance(application: Application): UserRepository {
@@ -105,12 +103,12 @@ class UserRepository(val application: Application) {
     }
 
 
-    suspend fun fetchReceivedRequestsForToolAndUser(tool: ToolInApp, requestForUserId: String? = null): List<BorrowRequest> {
+    suspend fun fetchReceivedRequestsForToolAndUser(toolId: String, requestForUserId: String? = null): List<BorrowRequest> {
         val result = if (requestForUserId == null)
             dbRequests
             .orderBy("toolId")
             .where {
-                "toolId".equalTo(tool.id)
+                "toolId".equalTo(toolId)
             }.get()
         else
             dbRequests
@@ -119,7 +117,7 @@ class UserRepository(val application: Application) {
                     "requesterId".equalTo(requestForUserId)
                 }
                 .where{
-                    "toolId".equalTo(tool.id)
+                    "toolId".equalTo(toolId)
                 }.get()
         val tmpListOfRequests = mutableListOf<BorrowRequest>()
         result.documents.forEach { dataSnapShot ->
