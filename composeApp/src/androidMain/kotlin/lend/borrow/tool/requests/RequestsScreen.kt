@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,16 +24,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getColor
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun RequestsScreen(toolId: String?, loggedInUser: User, showUserSentRequests: Boolean?) {
     val application = (LocalContext.current as Activity).application
-    val requestsViewModel: RequestsViewModel = viewModel {
-        RequestsViewModel(application, loggedInUser, toolId)
-    }
+    val requestsViewModel: RequestsViewModel =
+        if (showUserSentRequests == true)
+            RequestsViewModel(application, requester = loggedInUser, toolId = toolId)
+        else
+            RequestsViewModel(application, owner = loggedInUser, toolId = toolId)
 
-    val requests by if (showUserSentRequests == false) requestsViewModel.requestsSentToThisUser.collectAsState() else requestsViewModel.requestsSentByThisUser.collectAsState()
+    RequestsScreenContent(requestsViewModel)
+}
+
+@Composable
+fun RequestsScreenContent(requestsViewModel: RequestsViewModel) {
+
+    val requests by requestsViewModel.requestsForThisUser.collectAsState()
 
 
     LazyColumn {
@@ -53,19 +59,18 @@ fun RequestsScreen(toolId: String?, loggedInUser: User, showUserSentRequests: Bo
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = 10.dp)
                     .background(backgroundColor),
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
+                Spacer(modifier = Modifier.size(10.dp))
                 Text(text = "${item.borrower.name} wants to borrow ${item.tool.name}")
                 Spacer(modifier = Modifier.size(10.dp))
                 when (item.isAccepted) {
                     null -> {
                         Button(
                             onClick = {
-                                requestsViewModel.onRequestAccepted(true, item.initialRequest)
+                                requestsViewModel.onRequestAccepted(true, item)
                             },
                             colors = ButtonDefaults.buttonColors(
                                 primaryColor, Color.White
@@ -75,7 +80,7 @@ fun RequestsScreen(toolId: String?, loggedInUser: User, showUserSentRequests: Bo
                         }
                         Button(
                             onClick = {
-                                requestsViewModel.onRequestAccepted(false, item.initialRequest)
+                                requestsViewModel.onRequestAccepted(false, item)
                             },
                             colors = ButtonDefaults.buttonColors(Color.Red, Color.White)
                         ) {
@@ -105,8 +110,10 @@ fun RequestsScreen(toolId: String?, loggedInUser: User, showUserSentRequests: Bo
                         }
                     }
                 }
-
+                Spacer(modifier = Modifier.size(10.dp))
             }
+            
+
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -114,7 +121,7 @@ fun RequestsScreen(toolId: String?, loggedInUser: User, showUserSentRequests: Bo
                     .background(primaryColor)
             )
             if (!item.isRead)
-                requestsViewModel.onRequestReadUpdated(item.initialRequest)
+                requestsViewModel.onRequestReadUpdated(item)
         }
     }
 

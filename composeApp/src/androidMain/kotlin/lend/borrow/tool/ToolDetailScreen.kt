@@ -110,8 +110,7 @@ fun ToolDetailContent(toolDetailViewModel: ToolDetailViewModel, user: User?, nav
         tool != null -> {
             Column {
                 if (!isEditingToolInfo){
-                    if (tool!!.owner.id == user?.id)
-                        DropDownMenu(tool!!.id, toolDetailViewModel, navController)
+                    DropDownMenu(tool!!.id, toolDetailViewModel, navController, tool!!.owner.id == user?.id)
                     StaticToolInfoScreen(tool!!, user, toolDetailViewModel, true)
                 } else {
                     EditingToolInfoScreen(tool!!, toolDetailViewModel)
@@ -129,45 +128,6 @@ fun ToolDetailContent(toolDetailViewModel: ToolDetailViewModel, user: User?, nav
     }
     ProgressbarView(toolDetailViewModel)
 }
-@Composable
-fun ProgressbarView(toolDetailViewModel: ToolDetailViewModel) {
-    val uploadInProgress by toolDetailViewModel.isProcessing.collectAsState()
-    val latestProgressMessage by toolDetailViewModel.progressMessage.collectAsState()
-    if (uploadInProgress) {
-        Box(Modifier
-            .fillMaxSize()
-            .background(Color.LightGray.copy(alpha = 0.8f))
-            .clickable(
-                indication = null, // disable ripple effect
-                interactionSource = remember { MutableInteractionSource() },
-                onClick = { }
-            ), // This should prevent the layer under from catching the press event
-            contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(
-                    modifier = Modifier.wrapContentSize(),
-                    color = Color(
-                        ContextCompat.getColor(
-                            LocalContext.current,
-                            R.color.primary
-                        )
-                    )
-                )
-                androidx.compose.material.Text(
-                    text = latestProgressMessage?: "FUCK",
-                    fontWeight = FontWeight.Bold,
-                    color = Color(
-                        ContextCompat.getColor(
-                            LocalContext.current,
-                            R.color.primary
-                        )
-                    )
-                )
-            }
-        }
-    }
-}
-
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -502,6 +462,46 @@ fun EditingToolInfoScreen(
         TakePictureOfTool(toolDetailViewModel)
 
 }
+
+@Composable
+fun ProgressbarView(toolDetailViewModel: ToolDetailViewModel) {
+    val uploadInProgress by toolDetailViewModel.isProcessing.collectAsState()
+    val latestProgressMessage by toolDetailViewModel.progressMessage.collectAsState()
+    if (uploadInProgress) {
+        Box(Modifier
+            .fillMaxSize()
+            .background(Color.LightGray.copy(alpha = 0.8f))
+            .clickable(
+                indication = null, // disable ripple effect
+                interactionSource = remember { MutableInteractionSource() },
+                onClick = { }
+            ), // This should prevent the layer under from catching the press event
+            contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CircularProgressIndicator(
+                    modifier = Modifier.wrapContentSize(),
+                    color = Color(
+                        ContextCompat.getColor(
+                            LocalContext.current,
+                            R.color.primary
+                        )
+                    )
+                )
+                androidx.compose.material.Text(
+                    text = latestProgressMessage?: "FUCK",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(
+                        ContextCompat.getColor(
+                            LocalContext.current,
+                            R.color.primary
+                        )
+                    )
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun ZoomInImage(model: String, contentDescription: String? = null, onDismiss: () -> Unit) {
     var size by remember { mutableStateOf(Size.Zero) }
@@ -627,7 +627,7 @@ fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: To
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     user?.let { borrowerUser ->
         if (borrowerUser.id != tool_tmp.owner.id) {
-            val borrowRequestAvailability = toolAvailability && requestSentForThisTool.any { it.requestId == borrowerUser.id }.not()
+            val borrowRequestAvailability = toolAvailability && requestSentForThisTool.any { it.requesterId == borrowerUser.id }.not()
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 Modifier.fillMaxWidth(),

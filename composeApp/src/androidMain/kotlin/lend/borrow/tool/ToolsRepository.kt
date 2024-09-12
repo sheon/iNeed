@@ -73,12 +73,12 @@ class ToolsRepository(val application: Application) {
         }
     }
 
-    suspend fun getToolWithRequests(toolId: String, userRepository: UserRepository, retrievedData: suspend (ToolInApp, List<BorrowRequest>) -> Unit = { _, _ ->}) {
+    suspend fun getToolWithRequests(toolId: String, requestsForUserId: String?, userRepository: UserRepository, retrievedData: suspend (ToolInApp, List<BorrowRequest>) -> Unit = { _, _ ->}) {
             dbTools.document(toolId).let { toolRef ->
                 val tool = toolRef.get().data<ToolInFireStore>()
                 userRepository.getUserInfo(tool.owner)?.let {
                     val transformedTool = tool.toToolInApp(it, userRepo = userRepository, this)
-                    val borrowRequests = userRepository.fetchReceivedRequestsForTool(transformedTool)
+                    val borrowRequests = userRepository.fetchReceivedRequestsForToolAndUser(transformedTool, requestsForUserId)
                     retrievedData.invoke(transformedTool, borrowRequests)
                     toolValidityMap[transformedTool.id] = true
                 }

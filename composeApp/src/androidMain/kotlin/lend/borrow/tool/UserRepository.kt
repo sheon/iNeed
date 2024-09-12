@@ -69,7 +69,7 @@ class UserRepository(val application: Application) {
     }
 
 
-    suspend fun fetchAllRequestsForUser(borrowerId: String, requestsCallBack: (receivedRequests: List<BorrowRequestUiState>, sentRequest: List<BorrowRequestUiState>) -> Unit) {
+    suspend fun fetchRequestsSentByUser(borrowerId: String, requestsCallBack: suspend (sentRequest: List<BorrowRequest>) -> Unit) {
         val sentRequestsResult = dbRequests.where {
             "requesterId".equalTo(borrowerId)
         }.get()
@@ -80,8 +80,10 @@ class UserRepository(val application: Application) {
                 tmpListOfRequestsSent.add(request)
             }
         }
+        requestsCallBack(tmpListOfRequestsSent)
+    }
 
-
+    suspend fun fetchRequestsSentToUser(borrowerId: String, requestsCallBack: suspend (receivedRequests: List<BorrowRequest>) -> Unit) {
         val receivedRequestsResult = dbRequests.where {
             "ownerId".equalTo(borrowerId)
         }.get()
@@ -93,58 +95,32 @@ class UserRepository(val application: Application) {
             }
         }
 
-
-        val toolRepo = ToolsRepository.getInstance(application)
-
-        val tmpSentRequestsUiStates = mutableListOf<BorrowRequestUiState>()
-        tmpListOfRequestsSent.forEach { request ->
-            toolRepo.getTool(request.toolId, this) { tool ->
-                getUserInfo(request.requesterId)?.let { borrower ->
-                    tmpSentRequestsUiStates.add(
-                        BorrowRequestUiState(
-                            tool,
-                            borrower,
-                            isAccepted = request.isAccepted,
-                            isRead = request.isRead,
-                            initialRequest = request
-                        )
-                    )
-                }
-            }
-        }
-
-        val tmpReceivedRequestsUiStates = mutableListOf<BorrowRequestUiState>()
-        tmpListOfRequestsReceived.forEach { request ->
-            toolRepo.getTool(request.toolId, this) { tool ->
-                getUserInfo(request.requesterId)?.let { borrower ->
-                    tmpReceivedRequestsUiStates.add(
-                        BorrowRequestUiState(
-                            tool,
-                            borrower,
-                            isAccepted = request.isAccepted,
-                            isRead = request.isRead,
-                            initialRequest = request
-                        )
-                    )
-                }
-            }
-        }
-
-        requestsCallBack(tmpReceivedRequestsUiStates, tmpSentRequestsUiStates)
+        requestsCallBack(tmpListOfRequestsReceived)
 
     }
 
-    suspend fun updateRequest(request: BorrowRequest, callback: () -> Unit) {
+    suspend fun updateRequest(request: BorrowRequest, callback: suspend () -> Unit) {
         dbRequests.document(request.requestId).update(request)
         callback()
     }
 
 
-    suspend fun fetchReceivedRequestsForTool(tool: ToolInApp): List<BorrowRequest> {
-        val result = dbRequests.where {
-            "toolId".equalTo(tool.id)
-        }.get()
-
+    suspend fun fetchReceivedRequestsForToolAndUser(tool: ToolInApp, requestForUserId: String? = null): List<BorrowRequest> {
+        val result = if (requestForUserId == null)
+            dbRequests
+            .orderBy("toolId")
+            .where {
+                "toolId".equalTo(tool.id)
+            }.get()
+        else
+            dbRequests
+                .orderBy("requestForUserId")
+                .where{
+                    "requestForUserId".equalTo(requestForUserId)
+                }
+                .where{
+                    "toolId".equalTo(tool.id)
+                }.get()
         val tmpListOfRequests = mutableListOf<BorrowRequest>()
         result.documents.forEach { dataSnapShot ->
             dataSnapShot.data<BorrowRequest>().let { request ->
@@ -153,6 +129,11 @@ class UserRepository(val application: Application) {
         }
 
         return tmpListOfRequests
+    }
+
+    suspend fun fetchARequest(requestId: String): BorrowRequest {
+        val result = dbRequests.document(requestId).get()
+        return result.data<BorrowRequest>()
     }
 
     private suspend fun getCurrentUser(): User? = authService.auth.currentUser?.let {

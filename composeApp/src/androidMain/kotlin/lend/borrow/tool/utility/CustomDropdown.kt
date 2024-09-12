@@ -30,7 +30,7 @@ import lend.borrow.tool.ToolDetailViewModel
 import lend.borrow.tool.userprofile.UserProfileViewModel
 
 @Composable
-fun DropDownMenu(toolId: String?, toolDetailViewModel: ToolDetailViewModel, navController: NavController) {
+fun DropDownMenu(toolId: String?, toolDetailViewModel: ToolDetailViewModel, navController: NavController, isOwner: Boolean) {
     val requestSentForThisTool by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
     var expanded by remember { mutableStateOf(false) }
 
@@ -79,25 +79,23 @@ fun DropDownMenu(toolId: String?, toolDetailViewModel: ToolDetailViewModel, navC
                     expanded = false
                 }
             )
-            DropdownMenuItem(
-                text = { Text("Edit") },
-                onClick = {
-                    toolDetailViewModel.isEditingToolInfo.value = true
-                    expanded = false
-                }
-            )
+            if (isOwner)
+                DropdownMenuItem(
+                    text = { Text("Edit") },
+                    onClick = {
+                        toolDetailViewModel.isEditingToolInfo.value = true
+                        expanded = false
+                    }
+                )
         }
     }
 }
 
 @Composable
 fun DropDownMenu(loggedInUser: User, userProfileViewModel: UserProfileViewModel, navController: NavController) {
-    println("Ehsan: DropDownMenu userProfileViewModel: $userProfileViewModel")
     val requestSentByThisUser by userProfileViewModel.requestsSentByThisUser.collectAsState()
     val requestSentToThisUser by userProfileViewModel.requestsSentToThisUser.collectAsState()
     var expanded by remember { mutableStateOf(false) }
-    println("Ehsan: DropDownMenu requestSentByThisUser: ${requestSentByThisUser.size}")
-    println("Ehsan: DropDownMenu requestSentToThisUser: ${requestSentToThisUser.size}")
     val tool = null
     Box(
         modifier = Modifier
@@ -121,20 +119,6 @@ fun DropDownMenu(loggedInUser: User, userProfileViewModel: UserProfileViewModel,
                     onClick = {
                         navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${true}")
                         expanded = false
-                    },
-                    trailingIcon = {
-                        if (requestSentByThisUser.values.filter { !it.isRead }.isNotEmpty())
-                            Box(
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .background(Color.Red, CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "${requestSentByThisUser.values.filter { !it.isRead }.size}",
-                                    color = Color.White
-                                )
-                            }
                     }
                 )
 
@@ -154,7 +138,7 @@ fun DropDownMenu(loggedInUser: User, userProfileViewModel: UserProfileViewModel,
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "${requestSentByThisUser.values.filter { !it.isRead }.size}",
+                                    text = "${requestSentToThisUser.values.filter { !it.isRead }.size}",
                                     color = Color.White
                                 )
                             }
@@ -171,9 +155,7 @@ fun DropDownMenu(loggedInUser: User, userProfileViewModel: UserProfileViewModel,
             DropdownMenuItem(
                 text = { Text("Edit") },
                 onClick = {
-                    println("Ehsan: Edit onClick BEFORE isEditingUserProfile:${userProfileViewModel.isEditingUserProfile.value}")
                     userProfileViewModel.isEditingUserProfile.value = true
-                    println("Ehsan: Edit onClick AFTER isEditingUserProfile:${userProfileViewModel.isEditingUserProfile.value}")
                     expanded = false
                 }
             )

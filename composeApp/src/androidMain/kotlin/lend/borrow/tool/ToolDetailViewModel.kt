@@ -95,7 +95,7 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
                 try {
                     isFetchingTool.update { true }
                     _latestErrorMessage.value = null
-                    toolsRepo.getToolWithRequests(toolId, userRepo) { receivedTool, requestList ->
+                    toolsRepo.getToolWithRequests(toolId, null, userRepo) { receivedTool, requestList ->
                         callback(receivedTool)
                         isFetchingTool.update { false }
                         requestsReceivedForThisTool.update { requestList }

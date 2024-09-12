@@ -1,5 +1,6 @@
 package lend.borrow.tool.userprofile
 
+import BorrowRequest
 import User
 import android.app.Application
 import android.location.Geocoder
@@ -11,12 +12,11 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import lend.borrow.tool.BaseViewModel
 import lend.borrow.tool.R
-import lend.borrow.tool.requests.BorrowRequestUiState
 
 open class UserProfileViewModel( val loggedInUser: User, val application: Application): BaseViewModel(application) {
 
-    val requestsSentByThisUser = MutableStateFlow(mutableMapOf<String, BorrowRequestUiState>())
-    val requestsSentToThisUser = MutableStateFlow(mutableMapOf<String, BorrowRequestUiState>())
+    val requestsSentByThisUser = MutableStateFlow(mutableMapOf<String, BorrowRequest>())
+    val requestsSentToThisUser = MutableStateFlow(mutableMapOf<String, BorrowRequest>())
 
     var isEditingUserProfile = MutableStateFlow(false)
 
@@ -30,10 +30,16 @@ open class UserProfileViewModel( val loggedInUser: User, val application: Applic
 
     init {
         viewModelScope.launch {
-            userRepo.fetchAllRequestsForUser(loggedInUser.id) { receivedReq, sentReq ->
-                println("Ehsan: UserProfileVM $this init fetchAllRequestsForUser userId: ${loggedInUser.id} receivedReq: ${receivedReq.size} sentReq: ${sentReq.size} ")
-                requestsSentToThisUser.update { receivedReq.associateBy { it.initialRequest.requestId }.toMutableMap() }
-                requestsSentByThisUser.update { sentReq.associateBy { it.initialRequest.requestId }.toMutableMap() }
+            launch {
+                userRepo.fetchRequestsSentByUser(loggedInUser.id) { sentReq ->
+                    requestsSentByThisUser.update { sentReq.associateBy { it.requestId }.toMutableMap() }
+                }
+            }
+
+            launch {
+                userRepo.fetchRequestsSentToUser(loggedInUser.id) { receivedReq ->
+                    requestsSentToThisUser.update { receivedReq.associateBy { it.requestId }.toMutableMap() }
+                }
             }
         }
     }
