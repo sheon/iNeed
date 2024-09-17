@@ -19,7 +19,6 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     val isSavingChanges = MutableStateFlow(false)
     val isFetchingTool = MutableStateFlow(false)
 
-    val isReadyToBeShown = MutableStateFlow(false)
 
     val requestsReceivedForThisTool = MutableStateFlow(emptyList<BorrowRequest>())
 
@@ -53,7 +52,7 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     init {
         viewModelScope.launch {
             combine(isSavingChanges, isFetchingTool) { saving, fetching ->
-                isReadyToBeShown.update { saving || fetching }
+                _isProcessing.update { saving || fetching }
                 _progressMessage.value = when{
                     saving -> application.getString(R.string.saving)
                     fetching -> application.getString(R.string.fetching)

@@ -53,9 +53,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -81,6 +79,7 @@ import coil.compose.AsyncImage
 import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
+import lend.borrow.tool.utility.LogCompositions
 import lend.borrow.tool.utility.hasLocationPermission
 import lend.borrow.tool.utility.shimmerBrush
 import okhttp3.Call
@@ -101,10 +100,25 @@ fun RegisteredToolsScreen(
     navController: NavController
 ) {
     val application = (LocalContext.current as Activity).application
-    val toolsViewModel: ToolsViewModel = viewModel{
+    val toolsViewModel: ToolsViewModel = viewModel {
         ToolsViewModel(application, userId = userId)
     }
 
+
+
+    RegisteredToolsContent(toolsViewModel) {
+        TabScreen(toolsViewModel, navController)
+    }
+
+}
+
+
+@Composable
+fun RegisteredToolsContent(
+    toolsViewModel: ToolsViewModel,
+    tabView: @Composable () -> Unit
+) {
+    val application = (LocalContext.current as Activity).application
     val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
 
     val requestPermissionLauncher =
@@ -118,8 +132,6 @@ fun RegisteredToolsScreen(
             }
         }
 
-
-
     if (loggedInUser == null && toolsViewModel.anonymousUserLocation == null )
         if (hasLocationPermission(application)) {
             toolsViewModel.getAnonymousUserLocation(application) { lat, long ->
@@ -131,16 +143,7 @@ fun RegisteredToolsScreen(
             }
         }
 
-
-    ToolsList(toolsViewModel, navController)
-
-}
-
-
-@Composable
-fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController) {
-    val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
-
+    LogCompositions("Ehsan", "ToolsList")
     Column(
         Modifier
             .fillMaxSize()
@@ -160,44 +163,135 @@ fun ToolsList(toolsViewModel: ToolsViewModel, navController: NavController) {
                 )
             }
 
-        TabScreen(toolsViewModel, navController)
+        tabView()
 
     }
 }
 
-fun Context.getResponseFromAI(question: String, callBack: (List<String>) -> Unit) {
-    val apiKey = getString(lend.borrow.tool.R.string.api_key)
-    val url = "https://api.openai.com/v1/chat/completions"
-    val client = OkHttpClient()
-    val requestBody =
-        """{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"$question"}]}"""
+@OptIn(ExperimentalMaterialApi::class)
+@Composable
+fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
+    val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
+    val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
+    val errorMessage: String? by toolsViewModel.latestErrorMessage.collectAsState(null)
+    LogCompositions("Ehsan", "TabScreen")
 
-    val request = Request.Builder()
-        .url(url)
-        .addHeader("Content-Type", "application/json")
-        .addHeader("Authorization", "Bearer $apiKey")
-        .post(requestBody.toRequestBody("application/json".toMediaTypeOrNull()))
-        .build()
+    var iNeedInput by rememberSaveable { mutableStateOf("") }
 
-    client.newCall(request).enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-            Log.v(this@getResponseFromAI.javaClass.name, "Request Failed" + e)
-        }
+    var tabIndex by rememberSaveable { mutableStateOf(0) }
 
-        override fun onResponse(call: Call, response: Response) {
-            val body = response.body?.string()
-            val jsonObject = JSONObject(body)
-            val jsonArray: JSONArray = jsonObject.getJSONArray("choices")
-            val textResult =
-                jsonArray.getJSONObject(0).getJSONObject("message").getString("content")
-                    .replace("\\", "")
-            val list: List<String> = Json.decodeFromString(textResult)
-            callBack(list)
-        }
-
+    val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
+        toolsViewModel.refreshData()
     })
 
+
+    val tabs = listOf("Others", "Yours")
+
+    val toolsToShowForChosenTab by toolsViewModel.toolsToShowForChosenTab.collectAsState()
+    Column(modifier = Modifier.fillMaxWidth()) {
+        loggedInUser?.let {
+            TabRow(
+                selectedTabIndex = tabIndex,
+                backgroundColor = Color.White,
+                indicator = { tabPositions ->
+                    if (tabIndex < tabPositions.size) {
+                        TabRowDefaults.Indicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[tabIndex]),
+                            color = Color(getColor(LocalContext.current, R.color.primary))
+                        )
+                    }
+                }
+            ) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(text = { Text(title) },
+                        selected = tabIndex == index,
+                        selectedContentColor = Color.Yellow,
+                        onClick = {
+                            if(tabIndex != index) {
+                                tabIndex = index
+                                toolsViewModel.filterDataForTab(tabIndex = index)
+                            }
+                        }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.size(10.dp))
+        }
+
+        val backgroundColor = Color(LocalContext.current.resources.getColor(R.color.primary))
+
+
+        OutlinedTextField(
+            value = iNeedInput,
+            onValueChange = {
+                iNeedInput = it
+                if (it.isBlank())
+                    toolsViewModel.filterData(iNeedInput)
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(300.dp),
+            trailingIcon = {
+                IconButton(
+                    onClick = {
+                        toolsViewModel.filterData(iNeedInput)
+                    }
+                ) {
+                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
+                }
+            },
+            label = {
+                Text(text = "I need")
+            },
+            colors = TextFieldDefaults.colors(
+                focusedIndicatorColor = backgroundColor,
+                unfocusedIndicatorColor = backgroundColor.copy(alpha = 0.3f),
+                unfocusedContainerColor = backgroundColor.copy(alpha = 0.2f),
+                focusedContainerColor = backgroundColor.copy(alpha = 0.2f),
+                unfocusedTextColor = backgroundColor,
+                focusedTextColor = backgroundColor,
+                focusedLabelColor = backgroundColor,
+                unfocusedLabelColor = backgroundColor,
+                unfocusedTrailingIconColor = backgroundColor,
+                focusedTrailingIconColor = backgroundColor
+            )
+        )
+
+        errorMessage?.let {
+            Text(it, color = Color.Red, modifier = Modifier.padding(20.dp))
+        }
+
+        Spacer(modifier = Modifier.size(10.dp))
+
+        Spacer(modifier = Modifier
+            .height(1.dp)
+            .fillMaxWidth()
+            .background(backgroundColor))
+
+        Box(modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .pullRefresh(pullRefreshState)
+            .background(backgroundColor.copy(alpha = 0.2f))
+        ) {
+            LazyColumn(
+                contentPadding = PaddingValues(top = 5.dp)
+            ) {
+                items(toolsToShowForChosenTab,
+                    key = {
+                        it.id
+                    }) {item ->
+                    println("Ehsan: LazyColumn item: ${item.name} ${item.id}")
+                    ToolInfoCard(item.id, loggedInUser, navController)
+                }
+            }
+            PullRefreshIndicator(fetchingToolsInProgress, pullRefreshState, Modifier.align(Alignment.TopCenter))
+        }
+
+    }
 }
+
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -220,13 +314,10 @@ fun ToolInfoCard(
         )
     )
 
-    val inProgress by toolDetailViewModel.isReadyToBeShown.collectAsState()
+    LogCompositions("Ehsan", "ToolInfoCard $toolId")
 
-    var favorites = remember {
-        mutableStateListOf<String>()
-    }
+    val inProgress by toolDetailViewModel.isProcessing.collectAsState()
 
-    favorites.addAll(user?.favoriteTools ?: emptyList())
 
     val numberOfRequests by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
     val userOwnsThisTool = tool?.owner?.id == user?.id
@@ -244,7 +335,7 @@ fun ToolInfoCard(
             .background(Color.Transparent),
         contentAlignment = if (inProgress) Alignment.Center else Alignment.TopEnd
     ) {
-
+        LogCompositions("Ehsan", "BOX $toolId")
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -257,24 +348,21 @@ fun ToolInfoCard(
             colors = CardDefaults.cardColors(Color.White),
             elevation = CardDefaults.cardElevation(if (tool?.isAvailable == true) 5.dp else 0.dp)
         ) {
-            if (inProgress)
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            shimmerBrush(targetValue = 1300f, showShimmer = inProgress),
-                            RoundedCornerShape(2.dp)
-                        )
-                ) {
+            LogCompositions("Ehsan", "CARD")
+            if (inProgress) {
+                println("Ehsan: inProgress true")
+                ShimmeringCard(toolDetailViewModel) {
+                    LogCompositions("Ehsan", "Shimmer CONTENT")
                     Spacer(modifier = Modifier.size(50.dp))
                 }
-            else
+            } else
                 Column(
                     Modifier
                         .padding(5.dp)
                         .fillMaxWidth()
                         .padding(20.dp)
                 ) {
+                    LogCompositions("Ehsan", "Column ELSE")
                     AnimatedVisibility(true) {
                         LazyRow(
                             Modifier
@@ -292,6 +380,7 @@ fun ToolInfoCard(
                                         .padding(5.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
+                                    LogCompositions("Ehsan", "LazyRow Images")
                                     AsyncImage(
                                         model = it, // This should be changed to a UiState data class as in ToolDetailScreen
                                         modifier = Modifier
@@ -348,6 +437,7 @@ fun ToolInfoCard(
                     }
 
                     tool?.let {
+                        LogCompositions("Ehsan", "UserBorrowRequestButtonAndFavoritesView OUTSIDE")
                         UserBorrowRequestButtonAndFavoritesView(user, toolDetailViewModel, it)
                     }
 
@@ -374,119 +464,62 @@ fun ToolInfoCard(
 
 }
 
-@OptIn(ExperimentalMaterialApi::class)
+
 @Composable
-fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
-    val data by toolsViewModel.toolListAroundUser.collectAsState()
-    val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
-    val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
+fun ShimmeringCard(toolDetailViewModel: ToolDetailViewModel,
+                   content: @Composable () -> Unit) {
+    LogCompositions("Ehsan", "ShimmeringCard FUNCTION")
+    val inProgress by toolDetailViewModel.isProcessing.collectAsState()
 
-    var iNeedInput by rememberSaveable { mutableStateOf("") }
-
-    var tabIndex by rememberSaveable { mutableStateOf(0) }
-
-    val pullRefreshState = rememberPullRefreshState(fetchingToolsInProgress, {
-        toolsViewModel.refreshData()
-    })
-
-
-    val tabs = listOf("Others", "Yours")
-
-    val dataToShowForChosenTab = toolsViewModel.filterDataForTab(tabIndex == 1)
-    Column(modifier = Modifier.fillMaxWidth()) {
-        loggedInUser?.let {
-            TabRow(
-                selectedTabIndex = tabIndex,
-                backgroundColor = Color.White,
-                indicator = { tabPositions ->
-                    if (tabIndex < tabPositions.size) {
-                        TabRowDefaults.Indicator(
-                            modifier = Modifier.tabIndicatorOffset(tabPositions[tabIndex]),
-                            color = Color(getColor(LocalContext.current, R.color.primary))
-                        )
-                    }
-                }
-            ) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(text = { Text(title) },
-                        selected = tabIndex == index,
-                        selectedContentColor = Color.Yellow,
-                        onClick = {
-                            if(tabIndex != index) {
-                                tabIndex = index
-                            }
-                        }
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.size(10.dp))
-        }
-
-        val backgroundColor = Color(LocalContext.current.resources.getColor(R.color.primary))
-
-
-        OutlinedTextField(
-            value = iNeedInput, onValueChange = {
-                iNeedInput = it
-                if (it.isBlank())
-                    toolsViewModel.filterData(iNeedInput)
-            }, modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp),
-            shape = RoundedCornerShape(300.dp),
-            trailingIcon = {
-                IconButton(
-                    onClick = {
-                        toolsViewModel.filterData(iNeedInput)
-                    }
-                ) {
-                    Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
-                }
-            },
-            label = {
-                Text(text = "I need")
-            },
-            colors = TextFieldDefaults.colors(
-                focusedIndicatorColor = backgroundColor,
-                unfocusedIndicatorColor = backgroundColor.copy(alpha = 0.3f),
-                unfocusedContainerColor = backgroundColor.copy(alpha = 0.2f),
-                focusedContainerColor = backgroundColor.copy(alpha = 0.2f),
-                unfocusedTextColor = backgroundColor,
-                focusedTextColor = backgroundColor,
-                focusedLabelColor = backgroundColor,
-                unfocusedLabelColor = backgroundColor,
-                unfocusedTrailingIconColor = backgroundColor,
-                focusedTrailingIconColor = backgroundColor
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                shimmerBrush(targetValue = 1300f, showShimmer = inProgress),
+                RoundedCornerShape(2.dp)
             )
-        )
-
-        Spacer(modifier = Modifier.size(10.dp))
-
-        Spacer(modifier = Modifier
-            .height(1.dp)
-            .fillMaxWidth()
-            .background(backgroundColor))
-
-        Box(modifier = Modifier.fillMaxWidth()
-            .fillMaxHeight()
-            .pullRefresh(pullRefreshState)
-            .background(backgroundColor.copy(alpha = 0.2f))
-        ) {
-            LazyColumn(
-                contentPadding = PaddingValues(top = 5.dp)
-            ) {
-                items(dataToShowForChosenTab,
-                    key = {
-                        it.id
-                    }) {item ->
-                    ToolInfoCard(item.id, loggedInUser, navController)
-                }
-            }
-            PullRefreshIndicator(fetchingToolsInProgress, pullRefreshState, Modifier.align(Alignment.TopCenter))
-        }
-
+    ) {
+        content()
     }
 }
 
+fun Context.getResponseFromAI(question: String, onSuccessCallBack: (List<String>) -> Unit, onFailureCallback: () -> Unit) {
+    val apiKey = getString(lend.borrow.tool.R.string.api_key)
+    val url = "https://api.openai.com/v1/chat/completions"
+    val client = OkHttpClient()
+    val requestBody =
+        """{"model":"gpt-3.5-turbo","messages":[{"role":"user","content":"$question"}]}"""
 
+    val request = Request.Builder()
+        .url(url)
+        .addHeader("Content-Type", "application/json")
+        .addHeader("Authorization", "Bearer $apiKey")
+        .post(requestBody.toRequestBody("application/json".toMediaTypeOrNull()))
+        .build()
 
+    client.newCall(request).enqueue(object : Callback {
+        override fun onFailure(call: Call, e: IOException) {
+            println("Ehsan: getResponseFromAI onFailure IOException: ${e.message} ")
+            Log.v(this@getResponseFromAI.javaClass.name, "Request Failed" + e)
+        }
+
+        override fun onResponse(call: Call, response: Response) {
+            println("Ehsan: getResponseFromAI onResponse isSuccessful: ${response.isSuccessful}, message: ${response.message} ")
+            println("Ehsan: getResponseFromAI onResponse body: ${response.body}")
+            if (response.isSuccessful)
+                response.body?.string()?.let { body ->
+                    val jsonObject = JSONObject(body)
+                    val jsonArray: JSONArray = jsonObject.getJSONArray("choices")
+                    val textResult =
+                        jsonArray.getJSONObject(0).getJSONObject("message").getString("content")
+                            .replace("\\", "")
+                    val list: List<String> = Json.decodeFromString(textResult)
+                    onSuccessCallBack(list)
+                }
+            else
+                onFailureCallback()
+        }
+
+    })
+
+}

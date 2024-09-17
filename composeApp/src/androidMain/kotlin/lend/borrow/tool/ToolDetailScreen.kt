@@ -51,7 +51,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -87,17 +86,20 @@ import coil.compose.AsyncImage
 import lend.borrow.tool.shared.R
 import lend.borrow.tool.utility.CustomDialogWithResult
 import lend.borrow.tool.utility.DropDownMenu
+import lend.borrow.tool.utility.LogCompositions
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
 fun ToolDetailScreen(toolId: String, user: User? = null, navController: NavController) {
     val application = (LocalContext.current as Activity).application
-    val toolDetailViewModel: ToolDetailViewModel = viewModel(key = ToolDetailViewModel::class.java.name) {
+    val toolDetailViewModel: ToolDetailViewModel = viewModel(key = toolId) {
         ToolDetailViewModel(application, toolId, user?.id)
     }
-    LaunchedEffect(Unit) {
-        toolDetailViewModel.initiateViewModel()
-    }
+    // This would cause the tool info cards to recreated constantly and that is not efficient. But this is also needed to update the dropdown menu.
+    //Todo: maybe I can tweak the composable views so not the whole card is recomposed.
+//    LaunchedEffect(Unit) {
+//        toolDetailViewModel.initiateViewModel()
+//    }
     ToolDetailContent(toolDetailViewModel = toolDetailViewModel, user = user, navController)
 }
 
@@ -110,7 +112,7 @@ fun ToolDetailContent(toolDetailViewModel: ToolDetailViewModel, user: User?, nav
         tool != null -> {
             Column {
                 if (!isEditingToolInfo){
-                    DropDownMenu(tool!!.id, toolDetailViewModel, navController, tool!!.owner.id == user?.id)
+                    DropDownMenu(tool!!.defaultTool, toolDetailViewModel, navController, user?.id)
                     StaticToolInfoScreen(tool!!, user, toolDetailViewModel, true)
                 } else {
                     EditingToolInfoScreen(tool!!, toolDetailViewModel)
@@ -610,17 +612,18 @@ fun TakePictureOfTool(toolDetailViewModel: ToolDetailViewModel) {
 
 @Composable
 fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: ToolDetailViewModel, chosenTool: ToolDetailUiState) {
+    LogCompositions("Ehsan", "UserBorrowRequestButtonAndFavoritesView INSIDE")
     var tool_tmp: ToolDetailUiState by remember {
         mutableStateOf(chosenTool)
     }
     var favorites = remember {
-        mutableStateListOf<String>()
+        mutableStateListOf<String>().also {
+            it.addAll(user?.favoriteTools ?: emptyList())
+        }
     }
 
     val requestSentForThisTool by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
 
-
-    favorites.addAll(user?.favoriteTools ?: emptyList())
     val userOwnsThisTool = tool_tmp.owner.id == user?.id
     val toolOwner = tool_tmp.owner
     val toolAvailability: Boolean = userOwnsThisTool || toolOwner.availableAtTheMoment && tool_tmp.isAvailable

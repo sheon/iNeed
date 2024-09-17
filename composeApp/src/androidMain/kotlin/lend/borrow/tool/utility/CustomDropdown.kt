@@ -1,5 +1,6 @@
 package lend.borrow.tool.utility
 
+import ToolInApp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,10 +31,10 @@ import lend.borrow.tool.ToolDetailViewModel
 import lend.borrow.tool.userprofile.UserProfileViewModel
 
 @Composable
-fun DropDownMenu(toolId: String?, toolDetailViewModel: ToolDetailViewModel, navController: NavController, isOwner: Boolean) {
+fun DropDownMenu(tool: ToolInApp, toolDetailViewModel: ToolDetailViewModel, navController: NavController, userId: String?) {
     val requestSentForThisTool by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
     var expanded by remember { mutableStateOf(false) }
-
+    val isOwner = tool.owner.id == userId
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -56,11 +57,11 @@ fun DropDownMenu(toolId: String?, toolDetailViewModel: ToolDetailViewModel, navC
                     DropdownMenuItem(
                         text = { Text( if (isOwner) "Received requests" else "Your request") },
                         onClick = {
-                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${toolId}/${isOwner}")
+                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool.id}/${isOwner}")
                             expanded = false
                         },
                         trailingIcon = {
-                            if (requestSentForThisTool.filter { !it.isRead }.isNotEmpty())
+                            if (requestSentForThisTool.filter {!it.isRead }.isNotEmpty() && isOwner)
                                 Box(
                                     modifier = Modifier
                                         .size(20.dp)
@@ -77,7 +78,7 @@ fun DropDownMenu(toolId: String?, toolDetailViewModel: ToolDetailViewModel, navC
                 DropdownMenuItem(
                     text = { Text("Conversations") },
                     onClick = {
-                        navController.navigate(BorrowLendAppScreen.REQUESTS.name)
+                        navController.navigate(BorrowLendAppScreen.CONVERSATION.name)
                         expanded = false
                     }
                 )
@@ -122,7 +123,7 @@ fun DropDownMenu(userProfileViewModel: UserProfileViewModel, navController: NavC
                     DropdownMenuItem(
                         text = { Text("Sent requests") },
                         onClick = {
-                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${true}")
+                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${false}")
                             expanded = false
                         }
                     )
@@ -131,7 +132,7 @@ fun DropDownMenu(userProfileViewModel: UserProfileViewModel, navController: NavC
                     DropdownMenuItem(
                         text = { Text("Received requests") },
                         onClick = {
-                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${false}")
+                            navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool}/${true}")
                             expanded = false
                         },
                         trailingIcon = {
@@ -153,7 +154,7 @@ fun DropDownMenu(userProfileViewModel: UserProfileViewModel, navController: NavC
                 DropdownMenuItem(
                     text = { Text("Conversations") },
                     onClick = {
-                        navController.navigate(BorrowLendAppScreen.REQUESTS.name)
+                        navController.navigate(BorrowLendAppScreen.CONVERSATION.name)
                         expanded = false
                     }
                 )

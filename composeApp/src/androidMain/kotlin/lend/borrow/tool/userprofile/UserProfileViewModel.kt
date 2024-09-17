@@ -29,6 +29,10 @@ open class UserProfileViewModel( val loggedInUser: User, val application: Applic
     val userProfileUiState = MutableStateFlow(UserProfileUiState(loggedInUser.name, loggedInUser.address, loggedInUser.searchRadius, loggedInUser.availableAtTheMoment, loggedInUser))
 
     init {
+        initiateUserProfileViewmodel()
+    }
+
+    fun initiateUserProfileViewmodel() {
         viewModelScope.launch {
             launch {
                 userRepo.fetchRequestsSentByUser(loggedInUser.id) { sentReq ->

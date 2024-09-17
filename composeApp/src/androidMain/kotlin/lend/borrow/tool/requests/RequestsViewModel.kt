@@ -5,6 +5,8 @@ import ToolInApp
 import User
 import android.app.Application
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -28,41 +30,43 @@ class RequestsViewModel(
             when {
                 toolId != null -> {
                     toolsRepo.getToolWithRequests(toolId, requester?.id, userRepo) { _, fetchedRequests ->
-                        fetchedRequests.forEach { request ->
-                            request.toBorrowRequestUiState(userRepo) { borrowRequestUiState ->
-                                tmpRequestsMap[request.requestId] = borrowRequestUiState
+                        fetchedRequests.map { request ->
+                            async {
+                                request.toBorrowRequestUiState(userRepo) { borrowRequestUiState ->
+                                    tmpRequestsMap[request.requestId] = borrowRequestUiState
+                                }
                             }
-                        }
+                        }.awaitAll()
                         requestsForThisUser.update { tmpRequestsMap }
                     }
                 }
 
                 requester != null -> {
                     userRepo.fetchRequestsSentByUser(requester.id) { sentReqs ->
-                        launch {
-                            sentReqs.forEach { request ->
-                                request.toBorrowRequestUiState(
-                                    userRepo,
-                                    requester = requester
-                                ) { borrowRequestUiState ->
-                                    tmpRequestsMap[request.requestId] = borrowRequestUiState
+                            sentReqs.map { request ->
+                                async {
+                                    request.toBorrowRequestUiState(
+                                        userRepo,
+                                        requester = requester
+                                    ) { borrowRequestUiState ->
+                                        tmpRequestsMap[request.requestId] = borrowRequestUiState
+                                    }
                                 }
-                            }
+                            }.awaitAll()
                             requestsForThisUser.update { tmpRequestsMap }
-                        }
                     }
                 }
 
                 owner != null -> {
                     userRepo.fetchRequestsSentToUser(owner.id) { receivedReqs ->
-                        launch {
-                            receivedReqs.forEach { request ->
+                        receivedReqs.map { request ->
+                            async {
                                 request.toBorrowRequestUiState(userRepo) { borrowRequestUiState ->
                                     tmpRequestsMap[request.requestId] = borrowRequestUiState
                                 }
                             }
-                            requestsForThisUser.update { tmpRequestsMap }
-                        }
+                        }.awaitAll()
+                        requestsForThisUser.update { tmpRequestsMap }
                     }
                 }
             }

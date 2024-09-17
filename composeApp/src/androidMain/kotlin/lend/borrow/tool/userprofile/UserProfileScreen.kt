@@ -34,6 +34,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +67,10 @@ fun UserProfileScreen(
         viewModel(key = UserProfileViewModel::class.java.name) {
             UserProfileViewModel(loggedInUser, application)
         }
+
+    LaunchedEffect(Unit) {
+        userProfileViewModel.initiateUserProfileViewmodel()
+    }
 
     val isEditing by userProfileViewModel.isEditingUserProfile.collectAsState(isEditingUserProfile)
 
@@ -357,41 +362,6 @@ fun StaticUserProfileScreen(
             .fillMaxSize(),
         contentAlignment = Alignment.BottomEnd
     ) {
-
-        Row(
-            Modifier
-                .fillMaxSize()
-                .padding(15.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            SmallFloatingActionButton(
-                onClick = {
-                    openAddToolDialog.value = true
-                },
-                Modifier
-                    .wrapContentSize(),
-                containerColor = Color(
-                    getColor(
-                        LocalContext.current,
-                        lend.borrow.tool.shared.R.color.primary
-                    )
-                )
-            ) {
-                Row(
-                    Modifier.padding(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
-                ) {
-                    Text(text = "Add tool", color = Color.White)
-                    Icon(
-                        Icons.Filled.Add,
-                        "Small floating action button.",
-                        tint = Color.White
-                    )
-                }
-            }
-        }
-
         Column(
             Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.End
@@ -471,6 +441,40 @@ fun StaticUserProfileScreen(
                         .padding(10.dp)
                 )
 
+            }
+        }
+
+        Row(
+            Modifier
+                .fillMaxSize()
+                .padding(15.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            SmallFloatingActionButton(
+                onClick = {
+                    openAddToolDialog.value = true
+                },
+                Modifier
+                    .wrapContentSize(),
+                containerColor = Color(
+                    getColor(
+                        LocalContext.current,
+                        lend.borrow.tool.shared.R.color.primary
+                    )
+                )
+            ) {
+                Row(
+                    Modifier.padding(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Text(text = "Add tool", color = Color.White)
+                    Icon(
+                        Icons.Filled.Add,
+                        "Small floating action button.",
+                        tint = Color.White
+                    )
+                }
             }
         }
     }

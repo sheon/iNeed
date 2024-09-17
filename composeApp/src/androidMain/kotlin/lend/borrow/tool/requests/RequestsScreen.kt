@@ -2,7 +2,6 @@ package lend.borrow.tool.requests
 
 import User
 import android.app.Activity
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,10 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getColor
-import lend.borrow.tool.R
 
 @Composable
 fun RequestsScreen(toolId: String?, loggedInUser: User, isOwnerOfTool: Boolean?) {
@@ -151,8 +148,7 @@ fun SentRequestView(request: BorrowRequestUiState) {
             .fillMaxWidth()
             .padding(
                 horizontal = 10.dp
-            ),
-        contentAlignment = Alignment.BottomEnd
+            )
     ) {
         Column(
             Modifier.fillMaxSize(),
@@ -162,34 +158,32 @@ fun SentRequestView(request: BorrowRequestUiState) {
             Text(text = "Request sent to ${request.tool.owner.name}")
             Spacer(modifier = Modifier.size(10.dp))
             Text(text = "to borrow his ${request.tool.name}")
-            if (request.isAccepted == true) {
-                Spacer(modifier = Modifier.size(10.dp))
-                Button(
-                    onClick = {
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        primaryColor, Color.White
-                    )
-                ) {
-                    Text(text = "Go to conversation")
+            Spacer(modifier = Modifier.size(10.dp))
+            Button(
+                enabled = request.isAccepted == true,
+                onClick = {},
+                colors = ButtonDefaults.buttonColors(
+                    primaryColor, Color.White
+                )
+            ) {
+                when (request.isAccepted) {
+                    null -> {
+                        if (request.isRead)
+                            Text(text = "Seen")
+                        else
+                            Text(text = "Not seen")
+                    }
+
+                    false -> {
+                        Text(text = "Rejected")
+                    }
+
+                    true -> {
+                        Text(text = "Go to conversation")
+                    }
                 }
-                Spacer(modifier = Modifier.size(10.dp))
-            } else {
-                Spacer(modifier = Modifier.size(10.dp))
-                Button(
-                    enabled = false,
-                    onClick = {}
-                ) {
-                    Text(text = "Rejected")
-                }
-                Spacer(modifier = Modifier.size(10.dp))
             }
-        }
-        if (request.isRead && request.isAccepted == null) {
-            Image(
-                painter = painterResource(id = R.drawable.checkmark_double),
-                contentDescription = "More"
-            )
+            Spacer(modifier = Modifier.size(10.dp))
         }
     }
 
