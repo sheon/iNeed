@@ -8,5 +8,6 @@ enum class BorrowLendAppScreen(val title: String, modifier: Modifier = Modifier)
     USER(title = "User profile"),
     TOOL_DETAIL(title = "Tool detail"),
     REQUESTS(title = "Requests"),
-    CONVERSATION(title = "Conversations")
+    CONVERSATIONS(title = "Conversations"),
+    CHAT(title = "Chat room")
 }

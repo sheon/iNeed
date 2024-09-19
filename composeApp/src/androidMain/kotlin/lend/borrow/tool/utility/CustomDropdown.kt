@@ -78,7 +78,7 @@ fun DropDownMenu(tool: ToolInApp, toolDetailViewModel: ToolDetailViewModel, navC
                 DropdownMenuItem(
                     text = { Text("Conversations") },
                     onClick = {
-                        navController.navigate(BorrowLendAppScreen.CONVERSATION.name)
+                        navController.navigate(BorrowLendAppScreen.CONVERSATIONS.name)
                         expanded = false
                     }
                 )
@@ -154,7 +154,7 @@ fun DropDownMenu(userProfileViewModel: UserProfileViewModel, navController: NavC
                 DropdownMenuItem(
                     text = { Text("Conversations") },
                     onClick = {
-                        navController.navigate(BorrowLendAppScreen.CONVERSATION.name)
+                        navController.navigate(BorrowLendAppScreen.CONVERSATIONS.name)
                         expanded = false
                     }
                 )

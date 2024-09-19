@@ -1,12 +1,15 @@
 package lend.borrow.tool
 
 import BorrowRequest
+import Conversation
+import Message
 import ToolInApp
 import User
 import android.app.Application
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.CollectionReference
+import dev.gitlive.firebase.firestore.FieldValue
 import dev.gitlive.firebase.firestore.FirebaseFirestore
 import dev.gitlive.firebase.firestore.GeoPoint
 import dev.gitlive.firebase.firestore.firestore
@@ -24,6 +27,8 @@ class UserRepository(val application: Application) {
     val db: FirebaseFirestore = Firebase.firestore
     val dbUsers: CollectionReference = db.collection("Users")
     val dbRequests: CollectionReference = db.collection("Requests")
+    val dbConversations: CollectionReference = db.collection("Conversations")
+    val dbMessages: CollectionReference = db.collection("Messages")
 
 
     companion object {
@@ -97,8 +102,17 @@ class UserRepository(val application: Application) {
 
     }
 
-    suspend fun updateRequest(request: BorrowRequest, callback: suspend () -> Unit) {
+    suspend fun onRequestReadUpdated(request: BorrowRequest, callback: suspend () -> Unit) {
         dbRequests.document(request.requestId).update(request)
+        callback()
+    }
+
+    suspend fun onRequestAccepted(request: BorrowRequest, callback: suspend () -> Unit) {
+        val newConversation = dbConversations.document
+        newConversation.set(Conversation(conversationId = newConversation.id, messages = emptyList()))
+        dbUsers.document(request.requesterId).update(Pair("conversation", FieldValue.arrayUnion(newConversation.id)))
+        dbUsers.document(request.ownerId).update(Pair("conversation", FieldValue.arrayUnion(newConversation.id)))
+        dbRequests.document(request.requestId).update(request.copy(conversationId = newConversation.id))
         callback()
     }
 
@@ -156,6 +170,17 @@ class UserRepository(val application: Application) {
             _nearByOwners.clear()
         }
 
+    }
+
+    suspend fun sendMessage(message: String, senderId: String, conversationId: String) {
+        val newMessage = dbMessages.document
+        newMessage.set(Message(message = message, fromUserId = senderId, messageId = newMessage.id))
+        dbConversations.document(conversationId).update("messages" to FieldValue.arrayUnion(newMessage.id))
+    }
+
+    suspend fun getMessage(messageId: String): Message {
+        val messageRef = dbMessages.document(messageId).get()
+        return messageRef.data<Message>()
     }
 
     suspend fun updateUserFavoriteTools(user: User) {
