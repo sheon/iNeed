@@ -4,41 +4,47 @@ import Conversation
 import Message
 import User
 import android.app.Application
+import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import lend.borrow.tool.BaseViewModel
 
 class ChatroomViewModel(val conversationId: String, val toUserId: String, val application: Application): BaseViewModel(application) {
 
-    val chatRoomUiState = MutableStateFlow(ChatRoomUiState())
+    val messageListState = mutableStateListOf<Message>()
     var toUser: User = User()
     private suspend fun getToUserInfo() {
         toUser = userRepo.getUserInfo(toUserId) ?: User()
     }
 
-    private suspend fun getChatroomUiState() = coroutineScope {
-        getToUserInfo()
-        lateinit var conversation: Conversation
-        val conversationRef = userRepo.dbConversations.document(conversationId).get()
-        conversation = conversationRef.data<Conversation>()
-        val tmpMessages = mutableListOf<Message>()
-        conversation.messages.map { messageId ->
-                launch {
-                    tmpMessages.add(userRepo.getMessage(messageId))
-                }
-        }.joinAll()
-        chatRoomUiState.update {
-            it.copy(messages = (it.messages + tmpMessages).sortedBy { it.timeStampInSecond }, toUser = toUser)
-        }
-
+    private fun getChatroomUiState(): Flow<Conversation> {
+        return userRepo.dbConversations.document(conversationId)
+            .snapshots
+            .map { querySnapshot ->
+                querySnapshot.data<Conversation>()
+            }
     }
+
     init {
         viewModelScope.launch {
-            getChatroomUiState()
+            getToUserInfo()
+            getChatroomUiState().collect { conversation ->
+                val tmpMessages = mutableListOf<Message>()
+                conversation.messages.mapNotNull { messageId ->
+                    if (messageListState.map { it.messageId }.contains(messageId)
+                            .not()
+                    ) launch {
+                            tmpMessages.add(userRepo.getMessage(messageId))
+                        }
+                    else
+                        null
+
+                }.joinAll()
+                messageListState.addAll(tmpMessages)
+            }
         }
     }
 
@@ -49,4 +55,3 @@ class ChatroomViewModel(val conversationId: String, val toUserId: String, val ap
     }
 }
 
-data class ChatRoomUiState(val messages: List<Message> = emptyList(), val toUser: User = User())

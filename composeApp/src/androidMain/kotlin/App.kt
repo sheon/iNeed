@@ -171,12 +171,13 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     )
                 ) {
                     user.value?.let { loggedInUser ->
-                        it.arguments?.getString("conversationId")?.let { conversationId ->
-                            it.arguments?.getString("requesterId")?.let { toUserId ->
-                                currentScreenName.value = BorrowLendAppScreen.CHAT
-                                ChatroomScreen(conversationId, loggedInUser, toUserId)
+                        if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                            it.arguments?.getString("conversationId")?.let { conversationId ->
+                                it.arguments?.getString("requesterId")?.let { toUserId ->
+                                    currentScreenName.value = BorrowLendAppScreen.CHAT
+                                    ChatroomScreen(conversationId, loggedInUser, toUserId)
+                                }
                             }
-                        }
                     }
                 }
             }

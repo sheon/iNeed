@@ -613,7 +613,6 @@ fun TakePictureOfTool(toolDetailViewModel: ToolDetailViewModel) {
 
 @Composable
 fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: ToolDetailViewModel, chosenTool: ToolDetailUiState) {
-    LogCompositions("Ehsan", "UserBorrowRequestButtonAndFavoritesView INSIDE")
     var tool_tmp: ToolDetailUiState by remember {
         mutableStateOf(chosenTool)
     }
