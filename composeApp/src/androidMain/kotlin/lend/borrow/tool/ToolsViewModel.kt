@@ -82,30 +82,28 @@ open class ToolsViewModel(private val application: Application, open val userId:
     }
 
     fun filterData(iNeedInput: String) {
-        val tmpToolList = mutableListOf<ToolDetailUiState>()
+        val tmpToolList = mutableSetOf<ToolDetailUiState>()
         if (iNeedInput.isNotBlank()) {
-            val searchableTexts = iNeedInput.split(" ").filterNot { it.isEmpty() }
-            if (searchableTexts.size == 1) {
-                toolsToShowForChosenTab.update {
-                    tmpToolList.addAll(it.filter {
-                        it.name.replace(" ", "").equals(searchableTexts[0], true)
-                    })
-                    tmpToolList
+            if (userId == null) {
+                toolsToShowForChosenTab.update { tools ->
+                    tmpToolList.addAll(tools.filter { tool ->
+                        tool.name.contains(iNeedInput, true) || iNeedInput.contains(tool.name, true)
+                        }
+                    )
+                    tmpToolList.toList()
                 }
             } else {
                 fetchingToolsInProgress.value = true
                 application.getResponseFromAI(
-                    "I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.",
+                    "$iNeedInput. Please list the names of only those tools from this list ${toolsToShowForChosenTab.value.map { it.name }} which I can use directly for that purpose and order them by their relevance without numbering them in a kotlin list of strings in one line.",
                     { keyWords ->
                         toolsToShowForChosenTab.update {
                             keyWords.forEach { requiredTool ->
                                 tmpToolList.addAll(it.filter { availableTool ->
-                                    availableTool.name
-                                        .replace(" ", "")
-                                        .equals(requiredTool.replace(" ", ""), true)
+                                    availableTool.name.trim().equals(requiredTool.trim(), true)
                                 })
                             }
-                            tmpToolList
+                            tmpToolList.toList()
                         }
 
                         fetchingToolsInProgress.value = false
@@ -114,7 +112,7 @@ open class ToolsViewModel(private val application: Application, open val userId:
                         fetchingToolsInProgress.value = false
                         toolsToShowForChosenTab.update {
                             tmpToolList.addAll(it)
-                            tmpToolList
+                            tmpToolList.toList()
                         }
                         _latestErrorMessage.value = "We couldn't find the best match for your request, please rephrase your question and try again!"
                     })
