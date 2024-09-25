@@ -104,7 +104,6 @@ class ToolsRepository(val application: Application) {
                 val transformedTool = toolTransformationTask.await()
                 val borrowRequests = borrowRequestsTask.await()
                 retrievedData.invoke(transformedTool, borrowRequests)
-                println("Ehsan: getToolWithRequests transformedTool.id: ${transformedTool.id}")
                 toolValidityMap[transformedTool.id] = true
             }
 
@@ -169,7 +168,6 @@ class ToolsRepository(val application: Application) {
         val tempTool = newTool.copy(imageRefUrlMap = uploadedImagesStoragePath).toToolInFireStore()
         dbTools.document(newTool.id).update(tempTool)
         toolValidityMap[newTool.id] = false
-        println("Ehsan: ToolRepo tool: ${newTool.name} toolValidityMap: $toolValidityMap")
         callBack()
     }
     suspend fun deleteTool(tool: ToolInApp, user: User, progressCallBack: () -> Unit) {

@@ -18,7 +18,7 @@ class RequestsViewModel(
     val requester: User? = null,
     val toolId: String?
 ) : BaseViewModel(application) {
-    val requestsForThisUser = MutableStateFlow(mutableMapOf<String, BorrowRequestUiState>())
+    val requestsForThisUser = MutableStateFlow(emptyMap<String, BorrowRequestUiState>())
 
 
     fun getRequests() {
@@ -96,7 +96,7 @@ class RequestsViewModel(
 
     fun onRequestReadUpdated(request: BorrowRequestUiState) {
         viewModelScope.launch {
-            userRepo.updateRequest(request.initialRequest.copy(isRead = true)) {
+            userRepo.onRequestReadUpdated(request.initialRequest.copy(isRead = true)) {
                 getRequest(request)
             }
         }
@@ -104,8 +104,15 @@ class RequestsViewModel(
 
 
     fun onRequestAccepted(accepted: Boolean, request: BorrowRequestUiState) {
+        val tmpRequestsMap = mutableMapOf<String, BorrowRequestUiState>()
+        requestsForThisUser.value.map {
+            tmpRequestsMap[it.key] = it.value
+        }
+
+        tmpRequestsMap[request.initialRequest.requestId] = request.copy(beingFetched = true)
+        requestsForThisUser.update { tmpRequestsMap }
         viewModelScope.launch {
-            userRepo.updateRequest(request.initialRequest.copy(isAccepted = accepted)) {
+            userRepo.onRequestAccepted(request.initialRequest.copy(isAccepted = accepted)) {
                 getRequest(request)
             }
         }
@@ -114,4 +121,4 @@ class RequestsViewModel(
 }
 
 
-data class BorrowRequestUiState (val tool: ToolInApp, val borrower: User, val isAccepted: Boolean? = null, val isRead: Boolean = false, val initialRequest: BorrowRequest)
+data class BorrowRequestUiState (val tool: ToolInApp, val borrower: User, val isAccepted: Boolean? = null, val isRead: Boolean = false, val initialRequest: BorrowRequest, val beingFetched: Boolean = false)

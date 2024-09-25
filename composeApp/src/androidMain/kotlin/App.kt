@@ -42,11 +42,12 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import lend.borrow.tool.AuthenticationService
 import lend.borrow.tool.BorrowLendAppScreen
-import lend.borrow.tool.ConversationsScreen
 import lend.borrow.tool.LoginScreen
 import lend.borrow.tool.LoginViewModel
 import lend.borrow.tool.RegisteredToolsScreen
 import lend.borrow.tool.ToolDetailScreen
+import lend.borrow.tool.chatroom.ChatroomScreen
+import lend.borrow.tool.conversations.ConversationsScreen
 import lend.borrow.tool.requests.RequestsScreen
 import lend.borrow.tool.userprofile.UserProfileScreen
 
@@ -149,15 +150,36 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     currentScreenName.value = BorrowLendAppScreen.REQUESTS
                     if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
                         user.value?.let { loggedInUser ->
-                            RequestsScreen(it.arguments?.getString("toolId"), loggedInUser, it.arguments?.getBoolean("isSentByUser"))
+                            RequestsScreen(it.arguments?.getString("toolId"), loggedInUser, it.arguments?.getBoolean("isSentByUser"), navController)
                         }
                 }
 
-                composable(BorrowLendAppScreen.CONVERSATION.name) {
-                    currentScreenName.value = BorrowLendAppScreen.CONVERSATION
-                    ConversationsScreen()
+                composable(BorrowLendAppScreen.CONVERSATIONS.name) {
+                    user.value?.let { loggedInUser ->
+                        currentScreenName.value = BorrowLendAppScreen.CONVERSATIONS
+                        ConversationsScreen(loggedInUser, navController)
+                    }
                 }
 
+                composable("${BorrowLendAppScreen.CHAT.name}/{conversationId}/{requesterId}",
+                    arguments = listOf(navArgument("conversationId") {
+                        type = NavType.StringType
+                    },
+                        navArgument("requesterId") {
+                            type = NavType.StringType
+                        }
+                    )
+                ) {
+                    user.value?.let { loggedInUser ->
+                        if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                            it.arguments?.getString("conversationId")?.let { conversationId ->
+                                it.arguments?.getString("requesterId")?.let { toUserId ->
+                                    currentScreenName.value = BorrowLendAppScreen.CHAT
+                                    ChatroomScreen(conversationId, loggedInUser, toUserId)
+                                }
+                            }
+                    }
+                }
             }
         }
     }

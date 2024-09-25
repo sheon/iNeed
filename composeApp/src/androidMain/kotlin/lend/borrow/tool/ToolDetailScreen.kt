@@ -51,6 +51,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -97,15 +98,15 @@ fun ToolDetailScreen(toolId: String, user: User? = null, navController: NavContr
     }
     // This would cause the tool info cards to recreated constantly and that is not efficient. But this is also needed to update the dropdown menu.
     //Todo: maybe I can tweak the composable views so not the whole card is recomposed.
-//    LaunchedEffect(Unit) {
-//        toolDetailViewModel.initiateViewModel()
-//    }
+    LaunchedEffect(Unit) {
+        toolDetailViewModel.initiateViewModel()
+    }
     ToolDetailContent(toolDetailViewModel = toolDetailViewModel, user = user, navController)
 }
 
 @Composable
 fun ToolDetailContent(toolDetailViewModel: ToolDetailViewModel, user: User?, navController: NavController) {
-    val tool by toolDetailViewModel.tool.collectAsState()
+    val tool by toolDetailViewModel.tool.collectAsState(null)
     val latestErrorMessage by toolDetailViewModel.latestErrorMessage.collectAsState()
     val isEditingToolInfo by toolDetailViewModel.isEditingToolInfo.collectAsState()
     when {
@@ -612,7 +613,6 @@ fun TakePictureOfTool(toolDetailViewModel: ToolDetailViewModel) {
 
 @Composable
 fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: ToolDetailViewModel, chosenTool: ToolDetailUiState) {
-    LogCompositions("Ehsan", "UserBorrowRequestButtonAndFavoritesView INSIDE")
     var tool_tmp: ToolDetailUiState by remember {
         mutableStateOf(chosenTool)
     }

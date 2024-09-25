@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -26,9 +27,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getColor
+import androidx.navigation.NavController
+import lend.borrow.tool.BorrowLendAppScreen
 
 @Composable
-fun RequestsScreen(toolId: String?, loggedInUser: User, isOwnerOfTool: Boolean?) {
+fun RequestsScreen(toolId: String?, loggedInUser: User, isOwnerOfTool: Boolean?, navController: NavController) {
     val application = (LocalContext.current as Activity).application
     val requestsViewModel: RequestsViewModel =
         if (isOwnerOfTool == true)
@@ -36,11 +39,11 @@ fun RequestsScreen(toolId: String?, loggedInUser: User, isOwnerOfTool: Boolean?)
         else
             RequestsViewModel(application, requester = loggedInUser, toolId = toolId)
 
-    RequestsScreenContent(requestsViewModel)
+    RequestsScreenContent(requestsViewModel, navController)
 }
 
 @Composable
-fun RequestsScreenContent(requestsViewModel: RequestsViewModel) {
+fun RequestsScreenContent(requestsViewModel: RequestsViewModel, navController: NavController) {
 
     val requests by requestsViewModel.requestsForThisUser.collectAsState()
 
@@ -52,8 +55,8 @@ fun RequestsScreenContent(requestsViewModel: RequestsViewModel) {
             }) { item ->
 
             when {
-                requestsViewModel.owner != null -> ReceivedRequestView(item, requestsViewModel)
-                requestsViewModel.requester != null -> SentRequestView(item)
+                requestsViewModel.owner != null -> ReceivedRequestView(item, requestsViewModel, navController)
+                requestsViewModel.requester != null -> SentRequestView(item, navController)
             }
         }
     }
@@ -62,7 +65,7 @@ fun RequestsScreenContent(requestsViewModel: RequestsViewModel) {
 
 
 @Composable
-fun ReceivedRequestView(request: BorrowRequestUiState, requestsViewModel: RequestsViewModel) {
+fun ReceivedRequestView(request: BorrowRequestUiState, requestsViewModel: RequestsViewModel, navController: NavController) {
     val primaryColor = Color(
         getColor(
             LocalContext.current, lend.borrow.tool.shared.R.color.primary
@@ -79,18 +82,21 @@ fun ReceivedRequestView(request: BorrowRequestUiState, requestsViewModel: Reques
         Spacer(modifier = Modifier.size(10.dp))
         Text(text = "${request.borrower.name} wants to borrow your ${request.tool.name}")
         Spacer(modifier = Modifier.size(10.dp))
-        when (request.isAccepted) {
-            null -> {
-                Button(
-                    onClick = {
-                        requestsViewModel.onRequestAccepted(true, request)
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        primaryColor, Color.White
-                    )
-                ) {
-                    Text(text = "Accept")
-                }
+        when  {
+            request.isAccepted == null -> {
+                if (request.beingFetched)
+                    CircularProgressIndicator(color = primaryColor)
+                else {
+                    Button(
+                        onClick = {
+                            requestsViewModel.onRequestAccepted(true, request)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            primaryColor, Color.White
+                        )
+                    ) {
+                        Text(text = "Accept")
+                    }
                 Button(
                     onClick = {
                         requestsViewModel.onRequestAccepted(false, request)
@@ -99,6 +105,7 @@ fun ReceivedRequestView(request: BorrowRequestUiState, requestsViewModel: Reques
                 ) {
                     Text(text = "Reject")
                 }
+                    }
             }
 
             false -> {
@@ -114,6 +121,7 @@ fun ReceivedRequestView(request: BorrowRequestUiState, requestsViewModel: Reques
             true -> {
                 Button(
                     onClick = {
+                        navController.navigate("${BorrowLendAppScreen.CHAT.name}/${request.initialRequest.conversationId}/${request.initialRequest.requesterId}")
                     },
                     colors = ButtonDefaults.buttonColors(
                         primaryColor, Color.White
@@ -136,7 +144,7 @@ fun ReceivedRequestView(request: BorrowRequestUiState, requestsViewModel: Reques
 }
 
 @Composable
-fun SentRequestView(request: BorrowRequestUiState) {
+fun SentRequestView(request: BorrowRequestUiState, navController: NavController) {
     val primaryColor = Color(
         getColor(
             LocalContext.current, lend.borrow.tool.shared.R.color.primary
@@ -161,7 +169,9 @@ fun SentRequestView(request: BorrowRequestUiState) {
             Spacer(modifier = Modifier.size(10.dp))
             Button(
                 enabled = request.isAccepted == true,
-                onClick = {},
+                onClick = {
+                    navController.navigate("${BorrowLendAppScreen.CHAT.name}/${request.initialRequest.conversationId}/${request.initialRequest.ownerId}")
+                },
                 colors = ButtonDefaults.buttonColors(
                     primaryColor, Color.White
                 )

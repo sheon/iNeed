@@ -79,7 +79,6 @@ import coil.compose.AsyncImage
 import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
-import lend.borrow.tool.utility.LogCompositions
 import lend.borrow.tool.utility.hasLocationPermission
 import lend.borrow.tool.utility.shimmerBrush
 import okhttp3.Call
@@ -143,7 +142,6 @@ fun RegisteredToolsContent(
             }
         }
 
-    LogCompositions("Ehsan", "ToolsList")
     Column(
         Modifier
             .fillMaxSize()
@@ -174,7 +172,6 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
     val loggedInUser by toolsViewModel.loggedInUser.collectAsState()
     val fetchingToolsInProgress by toolsViewModel.fetchingToolsInProgress.collectAsState()
     val errorMessage: String? by toolsViewModel.latestErrorMessage.collectAsState(null)
-    LogCompositions("Ehsan", "TabScreen")
 
     var iNeedInput by rememberSaveable { mutableStateOf("") }
 
@@ -282,7 +279,6 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                     key = {
                         it.id
                     }) {item ->
-                    println("Ehsan: LazyColumn item: ${item.name} ${item.id}")
                     ToolInfoCard(item.id, loggedInUser, navController)
                 }
             }
@@ -314,7 +310,6 @@ fun ToolInfoCard(
         )
     )
 
-    LogCompositions("Ehsan", "ToolInfoCard $toolId")
 
     val inProgress by toolDetailViewModel.isProcessing.collectAsState()
 
@@ -335,7 +330,6 @@ fun ToolInfoCard(
             .background(Color.Transparent),
         contentAlignment = if (inProgress) Alignment.Center else Alignment.TopEnd
     ) {
-        LogCompositions("Ehsan", "BOX $toolId")
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -348,11 +342,8 @@ fun ToolInfoCard(
             colors = CardDefaults.cardColors(Color.White),
             elevation = CardDefaults.cardElevation(if (tool?.isAvailable == true) 5.dp else 0.dp)
         ) {
-            LogCompositions("Ehsan", "CARD")
             if (inProgress) {
-                println("Ehsan: inProgress true")
                 ShimmeringCard(toolDetailViewModel) {
-                    LogCompositions("Ehsan", "Shimmer CONTENT")
                     Spacer(modifier = Modifier.size(50.dp))
                 }
             } else
@@ -362,7 +353,6 @@ fun ToolInfoCard(
                         .fillMaxWidth()
                         .padding(20.dp)
                 ) {
-                    LogCompositions("Ehsan", "Column ELSE")
                     AnimatedVisibility(true) {
                         LazyRow(
                             Modifier
@@ -380,7 +370,6 @@ fun ToolInfoCard(
                                         .padding(5.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    LogCompositions("Ehsan", "LazyRow Images")
                                     AsyncImage(
                                         model = it, // This should be changed to a UiState data class as in ToolDetailScreen
                                         modifier = Modifier
@@ -437,7 +426,6 @@ fun ToolInfoCard(
                     }
 
                     tool?.let {
-                        LogCompositions("Ehsan", "UserBorrowRequestButtonAndFavoritesView OUTSIDE")
                         UserBorrowRequestButtonAndFavoritesView(user, toolDetailViewModel, it)
                     }
 
@@ -468,7 +456,6 @@ fun ToolInfoCard(
 @Composable
 fun ShimmeringCard(toolDetailViewModel: ToolDetailViewModel,
                    content: @Composable () -> Unit) {
-    LogCompositions("Ehsan", "ShimmeringCard FUNCTION")
     val inProgress by toolDetailViewModel.isProcessing.collectAsState()
 
     Box(
@@ -499,13 +486,10 @@ fun Context.getResponseFromAI(question: String, onSuccessCallBack: (List<String>
 
     client.newCall(request).enqueue(object : Callback {
         override fun onFailure(call: Call, e: IOException) {
-            println("Ehsan: getResponseFromAI onFailure IOException: ${e.message} ")
             Log.v(this@getResponseFromAI.javaClass.name, "Request Failed" + e)
         }
 
         override fun onResponse(call: Call, response: Response) {
-            println("Ehsan: getResponseFromAI onResponse isSuccessful: ${response.isSuccessful}, message: ${response.message} ")
-            println("Ehsan: getResponseFromAI onResponse body: ${response.body}")
             if (response.isSuccessful)
                 response.body?.string()?.let { body ->
                     val jsonObject = JSONObject(body)
