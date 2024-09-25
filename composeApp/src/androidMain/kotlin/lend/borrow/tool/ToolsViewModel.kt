@@ -6,71 +6,76 @@ import android.app.Application
 import android.content.Context
 import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.update
 import lend.borrow.tool.utility.getCurrentLocation
 import lend.borrow.tool.utility.toToolDetailUi
 
-class ToolsViewModel(private val application: Application, val user: User?) : BaseViewModel() {
+open class ToolsViewModel(private val application: Application, open val userId: String?) : BaseViewModel(application) {
 
     var fetchingToolsInProgress = MutableStateFlow(false)
-    var fetchingLocationInProgress = MutableStateFlow(false)
 
-    var anythingInProgress = merge(fetchingToolsInProgress, fetchingLocationInProgress)
+    var _allToolsAroundUser = mutableListOf<ToolDetailUiState>()
+    var allToolsAroundUser = MutableStateFlow<List<ToolDetailUiState>>(emptyList())
+    var toolsToShowForChosenTab = MutableStateFlow<List<ToolDetailUiState>>(emptyList())
 
-    val toolsRepo by lazy {
-        ToolsRepository.getInstance(application)
+    val loggedInUser by lazy {
+        userRepo.currentUser
     }
 
-    val userRepo by lazy {
-        UserRepository.getInstance(application)
-    }
-    val favorites: MutableStateFlow<List<String>>
-        get() = MutableStateFlow( userRepo.currentUser.value?.favoriteTools?: emptyList())
-
-    var _data = mutableListOf<ToolDetailUiState>()
-    var data = MutableStateFlow<List<ToolDetailUiState>>(emptyList())
 
     init {
         // In case, a registered user logs in then the tools should be fetched as soon as possible.
         // This also helps fetching tools more smoothly when registered user updates their address
         // or search radius. This call cannot be made from composable since it will cause an infinite
         // loop but the viewModel is only created once.
-        if(userRepo.currentUser.value != null)
+        if(userId != null) {
+            loggedInUser
             getToolsFromRemote()
-    }
-    var anonymousUserLocation: GeoPoint? = null
-    fun refreshData(isOwnerOfTools: Boolean = false) {
-        _data.clear()
-        userRepo.refreshData()
-        getToolsFromRemote(anonymousUserLocation, isOwnerOfTools)
-    }
-
-    fun getAnonymousUserLocation(context: Context, callback: (Double, Double) -> Unit) {
-        fetchingLocationInProgress.value = true
-        getCurrentLocation(context){ lat, long ->
-            fetchingLocationInProgress.value = false
-            callback(lat, long)
         }
     }
-
-    private var showingOwnersTools = false
-    fun getToolsFromRemote(location: GeoPoint? = null, isOwnerOfTools: Boolean = false)  {
-        showingOwnersTools = isOwnerOfTools
-        anonymousUserLocation = location
+    var anonymousUserLocation: GeoPoint? = null
+    fun refreshData() {
         launchWithCatchingException {
-            if (!fetchingToolsInProgress.value) {
-                _data.clear()
-                fetchingToolsInProgress.value = true
-                toolsRepo.getAvailableTools(location, {
-                    _data.addAll(it.filter { user == null || user.ownTools.contains(it.id) == showingOwnersTools }.map { it.toToolDetailUi(application) })
-                    data.value = _data
-                    fetchingToolsInProgress.value = false
-                }, userRepo)
+            userRepo.fetchUser(userId) {
+                _allToolsAroundUser.clear()
+                userRepo.refreshData()
+                getToolsFromRemote(anonymousUserLocation, true)
             }
         }
     }
 
-    fun updateUserFavoriteTools(user: User) {
+    fun getAnonymousUserLocation(context: Context, callback: (Double, Double) -> Unit) {
+        getCurrentLocation(context){ lat, long ->
+            callback(lat, long)
+        }
+    }
+    private var currentTab: Int = 0
+    private val isShowingOwnersTools: Boolean
+        get() = currentTab == 1
+
+    fun getToolsFromRemote(location: GeoPoint? = null, isRefreshing: Boolean = false)  {
+        anonymousUserLocation = location
+        launchWithCatchingException {
+            if (!fetchingToolsInProgress.value) {
+                _allToolsAroundUser.clear()
+                fetchingToolsInProgress.value = true
+                toolsRepo.getAvailableTools(location, {
+                    _allToolsAroundUser.addAll(it.map { it.toToolDetailUi(application) })
+                    filterDataForTab(tabIndex = currentTab)
+                    fetchingToolsInProgress.value = false
+                }, userRepo, isRefreshing)
+            }
+        }
+    }
+
+
+
+    fun filterDataForTab(tabIndex: Int) {
+        currentTab = tabIndex
+        toolsToShowForChosenTab.update {_allToolsAroundUser.filter { loggedInUser.value == null || loggedInUser.value?.ownTools?.contains(it.id) == isShowingOwnersTools }}
+    }
+
+    fun onAddToolToUserFavorites(user: User) {
         launchWithCatchingException {
             userRepo.updateUserFavoriteTools(user)
         }
@@ -79,28 +84,43 @@ class ToolsViewModel(private val application: Application, val user: User?) : Ba
     fun filterData(iNeedInput: String) {
         val tmpToolList = mutableListOf<ToolDetailUiState>()
         if (iNeedInput.isNotBlank()) {
-            if (iNeedInput.split(" ").size == 1) {
-                tmpToolList.addAll(_data.filter {
-                    it.name.replace(" ", "").equals(iNeedInput, true)
-                })
-                data.value = tmpToolList
+            val searchableTexts = iNeedInput.split(" ").filterNot { it.isEmpty() }
+            if (searchableTexts.size == 1) {
+                toolsToShowForChosenTab.update {
+                    tmpToolList.addAll(it.filter {
+                        it.name.replace(" ", "").equals(searchableTexts[0], true)
+                    })
+                    tmpToolList
+                }
             } else {
                 fetchingToolsInProgress.value = true
-                application.getResponseFromAI("I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.") {
-                    it.forEach { requiredTool ->
-                        tmpToolList.addAll(_data.filter { availableTool ->
-                            availableTool.name
-                                .replace(" ", "")
-                                .equals(requiredTool.replace(" ", ""), true)
-                        })
-                    }
-                    fetchingToolsInProgress.value = false
-                    data.value = tmpToolList
-                }
+                application.getResponseFromAI(
+                    "I need " + iNeedInput + "? send the list of tools name in a kotlin list of strings in one line.",
+                    { keyWords ->
+                        toolsToShowForChosenTab.update {
+                            keyWords.forEach { requiredTool ->
+                                tmpToolList.addAll(it.filter { availableTool ->
+                                    availableTool.name
+                                        .replace(" ", "")
+                                        .equals(requiredTool.replace(" ", ""), true)
+                                })
+                            }
+                            tmpToolList
+                        }
+
+                        fetchingToolsInProgress.value = false
+                    },
+                    {
+                        fetchingToolsInProgress.value = false
+                        toolsToShowForChosenTab.update {
+                            tmpToolList.addAll(it)
+                            tmpToolList
+                        }
+                        _latestErrorMessage.value = "We couldn't find the best match for your request, please rephrase your question and try again!"
+                    })
             }
         } else {
-            tmpToolList.addAll(_data)
-            data.value = tmpToolList
+            filterDataForTab(currentTab)
         }
     }
 

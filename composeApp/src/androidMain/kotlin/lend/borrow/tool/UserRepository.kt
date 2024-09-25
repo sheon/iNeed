@@ -1,5 +1,7 @@
 package lend.borrow.tool
 
+import BorrowRequest
+import ToolInApp
 import User
 import android.app.Application
 import dev.gitlive.firebase.Firebase
@@ -21,6 +23,9 @@ class UserRepository(val application: Application) {
     )
     val db: FirebaseFirestore = Firebase.firestore
     val dbUsers: CollectionReference = db.collection("Users")
+    val dbRequests: CollectionReference = db.collection("Requests")
+
+
     companion object {
     private lateinit var instance: UserRepository
         fun getInstance(application: Application): UserRepository {
@@ -50,13 +55,83 @@ class UserRepository(val application: Application) {
     private val _nearByOwners = mutableListOf<User>()
     val nearByOwners = _nearByOwners
 
-    suspend fun fetchUser(id: String, callBack: () -> Unit = {}) {
-        dbUsers.document(id).get().let { dataSnapShot ->
-            dataSnapShot.data<User>().let { userInfo ->
-                _currentUser.value = userInfo
-                callBack()
+    suspend fun fetchUser(id: String?, callBack: () -> Unit = {}) {
+        id?.let {
+            dbUsers.document(id).get().let { dataSnapShot ->
+                dataSnapShot.data<User>().let { userInfo ->
+                    _currentUser.value = userInfo
+                    callBack()
+                }
+            }
+        } ?: callBack()
+    }
+
+
+    suspend fun fetchRequestsSentByUser(borrowerId: String, requestsCallBack: suspend (sentRequest: List<BorrowRequest>) -> Unit) {
+        val sentRequestsResult = dbRequests.where {
+            "requesterId".equalTo(borrowerId)
+        }.get()
+
+        val tmpListOfRequestsSent = mutableListOf<BorrowRequest>()
+        sentRequestsResult.documents.forEach { dataSnapShot ->
+            dataSnapShot.data<BorrowRequest>().let { request ->
+                tmpListOfRequestsSent.add(request)
             }
         }
+        requestsCallBack(tmpListOfRequestsSent)
+    }
+
+    suspend fun fetchRequestsSentToUser(borrowerId: String, requestsCallBack: suspend (receivedRequests: List<BorrowRequest>) -> Unit) {
+        val receivedRequestsResult = dbRequests.where {
+            "ownerId".equalTo(borrowerId)
+        }.get()
+
+        val tmpListOfRequestsReceived = mutableListOf<BorrowRequest>()
+        receivedRequestsResult.documents.forEach { dataSnapShot ->
+            dataSnapShot.data<BorrowRequest>().let { request ->
+                tmpListOfRequestsReceived.add(request)
+            }
+        }
+
+        requestsCallBack(tmpListOfRequestsReceived)
+
+    }
+
+    suspend fun updateRequest(request: BorrowRequest, callback: suspend () -> Unit) {
+        dbRequests.document(request.requestId).update(request)
+        callback()
+    }
+
+
+    suspend fun fetchReceivedRequestsForToolAndUser(toolId: String, requestForUserId: String? = null): List<BorrowRequest> {
+        val result = if (requestForUserId == null)
+            dbRequests
+            .orderBy("toolId")
+            .where {
+                "toolId".equalTo(toolId)
+            }.get()
+        else
+            dbRequests
+                .orderBy("requesterId")
+                .where{
+                    "requesterId".equalTo(requestForUserId)
+                }
+                .where{
+                    "toolId".equalTo(toolId)
+                }.get()
+        val tmpListOfRequests = mutableListOf<BorrowRequest>()
+        result.documents.forEach { dataSnapShot ->
+            dataSnapShot.data<BorrowRequest>().let { request ->
+                tmpListOfRequests.add(request)
+            }
+        }
+
+        return tmpListOfRequests
+    }
+
+    suspend fun fetchARequest(requestId: String): BorrowRequest {
+        val result = dbRequests.document(requestId).get()
+        return result.data<BorrowRequest>()
     }
 
     private suspend fun getCurrentUser(): User? = authService.auth.currentUser?.let {
@@ -86,6 +161,13 @@ class UserRepository(val application: Application) {
     suspend fun updateUserFavoriteTools(user: User) {
         dbUsers.document(user.id).update("favoriteTools" to user.favoriteTools)
         fetchUser(user.id)
+    }
+
+    suspend fun onRequestToBorrow(borrower: User, tool: ToolInApp, callBack: () -> Unit) {
+        val tmpRef = dbRequests.document
+        val tmpRequest = BorrowRequest(requestId = tmpRef.id, requesterId = borrower.id, ownerId = tool.owner.id, toolId = tool.id)
+        tmpRef.set(tmpRequest)
+        callBack()
     }
 
     suspend fun updateUserInfo(newUserInfo: User, oldUserInfo: User, progressCallBack: () -> Unit) {
@@ -128,10 +210,7 @@ class UserRepository(val application: Application) {
         callback: suspend (List<User>) -> Unit
     ) {
         val possibleLocation = location ?: currentUser.value?.geoPoint
-        if (this.nearByOwners.isNotEmpty())
-            callback(this.nearByOwners)
-        else
-            possibleLocation?.let { availableLocation ->
+        possibleLocation?.let { availableLocation ->
                 val searchDistance = currentUser.value?.searchRadius ?: distance
                 val tempListOfOwnerNearBy = mutableListOf<User>()
                 val collectionRef = Firebase.firestore.collection("Users")

@@ -1,6 +1,5 @@
 package lend.borrow.tool
 
-import User
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,11 +13,7 @@ import kotlinx.coroutines.flow.update
 class LoginViewModel(
     application: Application,
     val authService: AuthenticationService
-) : BaseViewModel() {
-
-    val userRepo by lazy {
-        UserRepository.getInstance(application)
-    }
+) : BaseViewModel(application) {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState = _uiState.asStateFlow()
@@ -82,20 +77,6 @@ class LoginViewModel(
         }
 
     }
-
-    fun signOut() {
-        launchWithCatchingException {
-            userRepo.signOut()
-            _uiState.update { LoginUiState() }
-        }
-    }
-
-    fun deleteAccount(user: User) {
-        launchWithCatchingException {
-            userRepo.deleteAccount(user)
-        }
-    }
-
 }
 
 data class LoginUiState(

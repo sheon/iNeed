@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.core.content.ContextCompat.getColor
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController
@@ -41,11 +42,13 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.auth.auth
 import lend.borrow.tool.AuthenticationService
 import lend.borrow.tool.BorrowLendAppScreen
+import lend.borrow.tool.ConversationsScreen
 import lend.borrow.tool.LoginScreen
 import lend.borrow.tool.LoginViewModel
 import lend.borrow.tool.RegisteredToolsScreen
 import lend.borrow.tool.ToolDetailScreen
-import lend.borrow.tool.UserProfile
+import lend.borrow.tool.requests.RequestsScreen
+import lend.borrow.tool.userprofile.UserProfileScreen
 
 
 @Composable
@@ -98,16 +101,16 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
             ) {
                 composable(BorrowLendAppScreen.LOGIN.name) {
                     currentScreenName.value = BorrowLendAppScreen.LOGIN
-                    LoginScreen(
-                        Modifier
-                            .fillMaxSize(),
-                        loginViewModel,
-                        navController
-                    )
+                        LoginScreen(
+                            Modifier
+                                .fillMaxSize(),
+                            loginViewModel,
+                            navController
+                        )
                 }
                 composable(BorrowLendAppScreen.TOOLS.name) {
                     currentScreenName.value = BorrowLendAppScreen.TOOLS
-                    RegisteredToolsScreen(user.value, navController)
+                    RegisteredToolsScreen(user.value?.id, navController)
                 }
 
                 composable(
@@ -116,21 +119,43 @@ fun BorrowLendApp(navController: NavHostController = rememberNavController()) {
                     ) {
                     currentScreenName.value = BorrowLendAppScreen.TOOL_DETAIL
                     it.arguments?.getString("toolId")?.let {toolId ->
-                        ToolDetailScreen(toolId, user.value)
+                        if(it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                            ToolDetailScreen(toolId, user.value, navController)
                     }
                 }
 
                 composable(BorrowLendAppScreen.USER.name) {
                     currentScreenName.value = BorrowLendAppScreen.USER
-                    user.value?.let {
-                        UserProfile(
-                            it,
-                            loginViewModel = loginViewModel,
-                            navController = navController,
-                            isEditingUserProfile = shouldEditUserProfile
-                        )
-                    }
+                    if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                        user.value?.let {
+                            UserProfileScreen(
+                                it,
+                                navController = navController,
+                                isEditingUserProfile = shouldEditUserProfile
+                            )
+                        }
+                }
 
+                composable(
+                    "${BorrowLendAppScreen.REQUESTS.name}/{toolId}/{isSentByUser}",
+                    arguments = listOf(navArgument("toolId") {
+                        type = NavType.StringType
+                        nullable = true
+                    },
+                        navArgument("isSentByUser") {
+                            type = NavType.BoolType
+                        })
+                ) {
+                    currentScreenName.value = BorrowLendAppScreen.REQUESTS
+                    if (it.lifecycle.currentState == Lifecycle.State.RESUMED)
+                        user.value?.let { loggedInUser ->
+                            RequestsScreen(it.arguments?.getString("toolId"), loggedInUser, it.arguments?.getBoolean("isSentByUser"))
+                        }
+                }
+
+                composable(BorrowLendAppScreen.CONVERSATION.name) {
+                    currentScreenName.value = BorrowLendAppScreen.CONVERSATION
+                    ConversationsScreen()
                 }
 
             }

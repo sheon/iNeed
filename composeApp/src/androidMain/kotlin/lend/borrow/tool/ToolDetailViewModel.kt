@@ -1,6 +1,8 @@
 package lend.borrow.tool
 
+import BorrowRequest
 import ToolDetailUiState
+import ToolInApp
 import User
 import android.app.Application
 import androidx.lifecycle.viewModelScope
@@ -13,9 +15,12 @@ import kotlinx.coroutines.launch
 import lend.borrow.tool.utility.toToolDetailUi
 import lend.borrow.tool.utility.toToolInApp
 
-class ToolDetailViewModel(private val application: Application, val toolId: String) : BaseViewModel() {
-    var isSavingChanges = MutableStateFlow(false)
+class ToolDetailViewModel(private val application: Application, val toolId: String, override val userId: String? = null) : ToolsViewModel(application, userId) {
+    val isSavingChanges = MutableStateFlow(false)
     val isFetchingTool = MutableStateFlow(false)
+
+
+    val requestsReceivedForThisTool = MutableStateFlow(emptyList<BorrowRequest>())
 
     private lateinit var _toolDetailUiState: MutableStateFlow<ToolDetailUiState>
     private val _takingAPicture = MutableStateFlow(false)
@@ -23,18 +28,27 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     val toolDetailUiState by lazy {
         _toolDetailUiState.asStateFlow()
     }
-    val toolsRepo by lazy {
-        ToolsRepository.getInstance(application)
-    }
 
-    val userRepo by lazy {
-        UserRepository.getInstance(application)
+//    fun getRequestsReceivedForTool(tool: ToolInApp, borrowRequestsCallback: (List<BorrowRequestUiState>) -> Unit) {
+//        requestsReceivedForThisTool.update { emptyList() }
+//        viewModelScope.launch {
+//            borrowRequestsCallback(userRepo.fetchReceivedRequestsForTool(tool.id))
+//        }
+//    }
+
+    fun onRequestToBorrow(user: User, toolToBorrow: ToolDetailUiState, callback: (ToolInApp) -> Unit) {
+        launchWithCatchingException {
+            userRepo.onRequestToBorrow(user, toolToBorrow.defaultTool) {
+                getTool(toolToBorrow.id, callback)
+            }
+        }
     }
-    val favorites: MutableStateFlow<List<String>>
-        get() = MutableStateFlow( userRepo.currentUser.value?.favoriteTools?: emptyList())
 
     var tool = MutableStateFlow<ToolDetailUiState?>(null)
     var isEditingToolInfo = MutableStateFlow(false)
+    val toolNeedUpdate: Boolean
+        get() = toolsRepo.toolValidityMap[toolId] == false
+
     init {
         viewModelScope.launch {
             combine(isSavingChanges, isFetchingTool) { saving, fetching ->
@@ -45,18 +59,23 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
                     else -> ""
                 }
             }.collect()
+
+
+
         }
 
+        initiateViewModel()
+    }
 
+    fun initiateViewModel() {
         // In case, a registered user logs in then the tools should be fetched as soon as possible.
         // This also helps fetching tools more smoothly when registered user updates their address
         // or search radius. This call cannot be made from composable since it will cause an infinite
         // loop but the viewModel is only created once.
-            getTool(toolId)
+        getTool(toolId) {
+            isFetchingTool.update {false}
+        }
     }
-
-
-
     fun updateUserFavoriteTools(user: User) {
         launchWithCatchingException {
             userRepo.updateUserFavoriteTools(user)
@@ -67,26 +86,33 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
         _takingAPicture.value = start
     }
 
-    private fun getTool(toolId: String) {
-        if (!isFetchingTool.value)
+    private fun getTool(toolId: String, callback: (ToolInApp) -> Unit = {}) {
+        if (!isFetchingTool.value){
+            tool.value = null
+            requestsReceivedForThisTool.value = emptyList()
             viewModelScope.launch {
-                isFetchingTool.update {true}
                 try {
+                    isFetchingTool.update { true }
                     _latestErrorMessage.value = null
-                    toolsRepo.getTool(toolId, {
-                        it.toToolDetailUi(application).also {toolDetailUiState ->
-                            tool.value = toolDetailUiState
-                        initiateOwnerToolDetailEditingUiState(toolDetailUiState)
+                    toolsRepo.getToolWithRequests(toolId, null, userRepo) { receivedTool, requestList ->
+                        callback(receivedTool)
+                        isFetchingTool.update { false }
+                        requestsReceivedForThisTool.update { requestList }
+                        receivedTool.toToolDetailUi(application).also { toolDetailUiState ->
+                            initiateOwnerToolDetailEditingUiState(toolDetailUiState)
+                            tool.update { toolDetailUiState }
                         }
-                    }, userRepo)
+
+                    }
                 } catch (e: Exception) {
                     _latestErrorMessage.value = "Couldn't find your tool"
                     tool.value = null
+                    isFetchingTool.update { false }
                 } finally {
                     isEditingToolInfo.value = false
-                    isFetchingTool.update { false }
                 }
             }
+        }
     }
 
     fun onToolNameChanged(newValue: String){
