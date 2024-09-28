@@ -82,6 +82,7 @@ open class ToolsViewModel(private val application: Application, open val userId:
     }
 
     fun filterData(iNeedInput: String) {
+        _latestErrorMessage.value = null
         val tmpToolList = mutableListOf<ToolDetailUiState>()
         if (iNeedInput.isNotBlank()) {
             val searchableTexts = iNeedInput.split(" ").filterNot { it.isEmpty() }

@@ -8,6 +8,10 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,11 +30,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ExperimentalMaterialApi
@@ -38,6 +45,10 @@ import androidx.compose.material.TabRow
 import androidx.compose.material.TabRowDefaults
 import androidx.compose.material.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
@@ -54,16 +65,19 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -80,6 +94,8 @@ import dev.gitlive.firebase.firestore.GeoPoint
 import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
 import lend.borrow.tool.utility.hasLocationPermission
+import lend.borrow.tool.utility.primaryColor
+import lend.borrow.tool.utility.secondaryColor
 import lend.borrow.tool.utility.shimmerBrush
 import okhttp3.Call
 import okhttp3.Callback
@@ -146,20 +162,47 @@ fun RegisteredToolsContent(
         Modifier
             .fillMaxSize()
     ) {
-        if (loggedInUser == null)
-            Box(modifier = Modifier
-                .padding(10.dp)
-                .background(Color.Yellow)
-                .padding(10.dp)
-            ) {
-                Text(
-                    text = stringResource(lend.borrow.tool.R.string.guest_warning_message),
-                    modifier = Modifier
-                        .padding(10.dp),
-                    textAlign = TextAlign.Justify,
-                    fontStyle = FontStyle.Italic
-                )
+        if (loggedInUser == null) {
+            var warningIsShowing by remember {
+                mutableStateOf(true)
             }
+            val height = animateDpAsState(
+                targetValue = if (warningIsShowing) 200.dp else 20.dp,
+                animationSpec = tween(
+                    500,
+                    easing = LinearEasing
+                ),
+                label = "height"
+            )
+            Box(
+                contentAlignment = Alignment.BottomEnd
+            ) {
+                Box(
+                    modifier = Modifier
+                        .sizeIn(minHeight = 0.dp, maxHeight = height.value)
+                        .padding(10.dp)
+                        .background(Color.Yellow)
+                        .padding(10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(lend.borrow.tool.R.string.guest_warning_message),
+                        modifier = Modifier
+                            .padding(10.dp),
+                        textAlign = TextAlign.Justify,
+                        fontStyle = FontStyle.Italic
+                    )
+                }
+                IconButton(onClick = {
+                    warningIsShowing = !warningIsShowing
+                }) {
+                    Icon(
+                        imageVector = if (warningIsShowing) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = ""
+                    )
+                }
+            }
+        }
 
         tabView()
 
@@ -194,7 +237,7 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                     if (tabIndex < tabPositions.size) {
                         TabRowDefaults.Indicator(
                             modifier = Modifier.tabIndicatorOffset(tabPositions[tabIndex]),
-                            color = Color(getColor(LocalContext.current, R.color.primary))
+                            color = LocalContext.current.primaryColor
                         )
                     }
                 }
@@ -202,7 +245,7 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                 tabs.forEachIndexed { index, title ->
                     Tab(text = { Text(title) },
                         selected = tabIndex == index,
-                        selectedContentColor = Color.Yellow,
+                        selectedContentColor = LocalContext.current.secondaryColor,
                         onClick = {
                             if(tabIndex != index) {
                                 tabIndex = index
@@ -212,10 +255,10 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                     )
                 }
             }
-            Spacer(modifier = Modifier.size(10.dp))
         }
+        Spacer(modifier = Modifier.size(10.dp))
 
-        val backgroundColor = Color(LocalContext.current.resources.getColor(R.color.primary))
+        val backgroundColor = LocalContext.current.primaryColor
 
 
         OutlinedTextField(
@@ -243,9 +286,9 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
             },
             colors = TextFieldDefaults.colors(
                 focusedIndicatorColor = backgroundColor,
-                unfocusedIndicatorColor = backgroundColor.copy(alpha = 0.3f),
-                unfocusedContainerColor = backgroundColor.copy(alpha = 0.2f),
-                focusedContainerColor = backgroundColor.copy(alpha = 0.2f),
+                unfocusedIndicatorColor = backgroundColor.copy(alpha = 0.2f),
+                unfocusedContainerColor = backgroundColor.copy(alpha = 0.1f),
+                focusedContainerColor = backgroundColor.copy(alpha = 0.1f),
                 unfocusedTextColor = backgroundColor,
                 focusedTextColor = backgroundColor,
                 focusedLabelColor = backgroundColor,
@@ -264,15 +307,16 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
         Spacer(modifier = Modifier
             .height(1.dp)
             .fillMaxWidth()
-            .background(backgroundColor))
+            .background(Color.LightGray))
 
         Box(modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight()
             .pullRefresh(pullRefreshState)
-            .background(backgroundColor.copy(alpha = 0.2f))
+            .background(backgroundColor.copy(alpha = 0.1f))
         ) {
             LazyColumn(
+                modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(top = 5.dp)
             ) {
                 items(toolsToShowForChosenTab,
@@ -315,158 +359,212 @@ fun ToolInfoCard(
 
 
     val numberOfRequests by toolDetailViewModel.requestsReceivedForThisTool.collectAsState()
-    val userOwnsThisTool = tool?.owner?.id == user?.id
-    val toolOwner = tool?.owner
-    val toolAvailability: Boolean =
-        userOwnsThisTool || (toolOwner?.availableAtTheMoment == true && tool?.isAvailable == true)
-    val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
+    if (inProgress) {
+        ShimmeringCard()
+    } else
+        tool?.let { fetchedTool ->
+        val userOwnsThisTool = fetchedTool.owner.id == user?.id
+        val toolOwner = fetchedTool.owner
+        val toolAvailability: Boolean =
+            userOwnsThisTool || (toolOwner.availableAtTheMoment && fetchedTool.isAvailable)
+        val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
 
-    val iconSize = 30.dp
-    val offsetInPx = LocalDensity.current.run { (iconSize / 2).roundToPx() }
-
-    Box(
-        modifier = Modifier
-            .padding(iconSize / 2)
-            .background(Color.Transparent),
-        contentAlignment = if (inProgress) Alignment.Center else Alignment.TopEnd
-    ) {
-        Card(
+        val iconSize = 30.dp
+        val offsetInPx = LocalDensity.current.run { (iconSize / 2).roundToPx() }
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .clickable(user != null) {
-                    if (user != null && tool != null) {
-                        navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${tool!!.id}")
-                    }
-                },
-            colors = CardDefaults.cardColors(Color.White),
-            elevation = CardDefaults.cardElevation(if (tool?.isAvailable == true) 5.dp else 0.dp)
+                .padding(iconSize / 2)
+                .background(Color.Transparent),
+            contentAlignment = Alignment.TopEnd
         ) {
-            if (inProgress) {
-                ShimmeringCard(toolDetailViewModel) {
-                    Spacer(modifier = Modifier.size(50.dp))
-                }
-            } else
-                Column(
-                    Modifier
-                        .padding(5.dp)
-                        .fillMaxWidth()
-                        .padding(20.dp)
-                ) {
-                    AnimatedVisibility(true) {
-                        LazyRow(
-                            Modifier
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(if (fetchedTool.isAvailable) 10.dp else 0.dp, RoundedCornerShape(15.dp))
+                    .clip(RoundedCornerShape(15.dp))
+                    .wrapContentHeight()
+                    .clickable(user != null, onClick = {
+                        if (user != null) {
+                            navController.navigate("${BorrowLendAppScreen.TOOL_DETAIL.name}/${fetchedTool.id}")
+                        }
+                    }),
+                colors = CardDefaults.cardColors(Color.White),
+            ) {
+                    Column(
+                        Modifier
+                            .padding(5.dp)
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                    ) {
+                        val horizontalScrollState = rememberLazyListState()
+                        AnimatedVisibility(true) {
+                            Box(contentAlignment = Alignment.Center) {
+                                LazyRow(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                        .padding(horizontal = 10.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    state = horizontalScrollState
+                                ) {
+                                    items(fetchedTool.imageUrlsRefMap.keys.toList() ?: emptyList(),
+                                        key = {
+                                            it
+                                        }) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .padding(5.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            AsyncImage(
+                                                model = it, // This should be changed to a UiState data class as in ToolDetailScreen
+                                                modifier = Modifier
+                                                    .alpha(toolAlpha)
+                                                    .border(1.dp, Color.LightGray),
+                                                contentDescription = "",
+                                                contentScale = ContentScale.Fit
+                                            )
+                                        }
+                                    }
+                                }
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.Start
+                                ) {
+                                    if (horizontalScrollState.canScrollBackward)
+                                        Box(
+                                            modifier = Modifier
+                                                .wrapContentSize()
+                                                .shadow(5.dp, shape = CircleShape)
+                                                .background(Color.White, CircleShape)
+                                        ) {
+                                            androidx.compose.material.Icon(
+                                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                                                contentDescription = "Scroll to left"
+                                            )
+                                        }
+                                }
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End
+                                ) {
+                                    if (horizontalScrollState.canScrollForward)
+                                        Box(
+                                            modifier = Modifier
+                                                .wrapContentSize()
+                                                .shadow(5.dp, shape = CircleShape)
+                                                .background(Color.White, CircleShape)
+                                        ) {
+                                            androidx.compose.material.Icon(
+                                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                                contentDescription = "Scroll to right"
+                                            )
+                                        }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.size(5.dp))
+                        Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
+                        Text(text = fetchedTool.name, modifier = Modifier.padding(5.dp))
+                        Spacer(Modifier.size(5.dp))
+                        Text(text = "Description: ", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = fetchedTool.description,
+                            maxLines = 3,
+                            modifier = Modifier.padding(5.dp),
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Justify
+                        )
+                        if (fetchedTool.tags?.isNotEmpty() == true)
+                            Spacer(modifier = Modifier.height(11.dp))
+                        FlowRow(
+                            modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp),
-                            horizontalArrangement = Arrangement.Center
+                                .wrapContentHeight()
+                                .padding(top = 5.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            items(tool?.imageUrlsRefMap?.keys?.toList() ?: emptyList(),
-                                key = {
-                                    it
-                                }) {
+                            fetchedTool.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxHeight()
-                                        .padding(5.dp),
-                                    contentAlignment = Alignment.Center
+                                        .wrapContentSize()
+                                        .background(
+                                            color = Color.Black,
+                                            shape = RoundedCornerShape(5.dp)
+                                        )
+                                        .alpha(toolAlpha)
+                                        .padding(7.dp),
+                                    Alignment.Center
                                 ) {
-                                    AsyncImage(
-                                        model = it, // This should be changed to a UiState data class as in ToolDetailScreen
-                                        modifier = Modifier
-                                            .alpha(toolAlpha)
-                                            .border(1.dp, Color.LightGray),
-                                        contentDescription = "",
-                                        contentScale = ContentScale.Fit
+                                    Text(
+                                        text = tag.trim(),
+                                        fontSize = 12.sp,
+                                        modifier = Modifier.padding(horizontal = 5.dp),
+                                        color = Color.White
                                     )
                                 }
                             }
-
                         }
+
+                        UserBorrowRequestButtonAndFavoritesView(user, toolDetailViewModel, fetchedTool)
+
                     }
-                    Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
-                    Text(text = tool?.name ?: "", modifier = Modifier.padding(5.dp))
-                    Text(text = "Description: ", fontWeight = FontWeight.Bold)
-                    Text(
-                        text = tool?.description ?: "",
-                        maxLines = 3,
-                        modifier = Modifier.padding(5.dp),
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Justify
+            }
+            if (numberOfRequests.isNotEmpty())
+                Box(modifier = Modifier
+                    .offset {
+                        IntOffset(x = -offsetInPx, y = -offsetInPx)
+                    }
+                    .size(iconSize),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.send_icon),
+                        contentDescription = ""
                     )
-                    if (tool?.tags?.isNotEmpty() == true)
-                        Spacer(modifier = Modifier.height(11.dp))
-                    FlowRow(
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .wrapContentHeight()
-                            .padding(top = 5.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            .shadow(4.dp, shape = CircleShape)
+                            .background(
+                                Color(LocalContext.current.getColor(R.color.secondary)),
+                                CircleShape
+                            )
+                            .size(iconSize / 2),
+                        contentAlignment = Alignment.Center
                     ) {
-                        tool?.tags?.replace(" ", "")?.split(",")?.forEach { tag ->
-                            Box(
-                                modifier = Modifier
-                                    .wrapContentSize()
-                                    .background(
-                                        color = Color.Black,
-                                        shape = RoundedCornerShape(5.dp)
-                                    )
-                                    .alpha(toolAlpha)
-                                    .padding(7.dp),
-                                Alignment.Center
-                            ) {
-                                Text(
-                                    text = tag.trim(),
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.padding(horizontal = 5.dp),
-                                    color = Color.White
-                                )
-                            }
-                        }
+                        Text(
+                            text = numberOfRequests.size.toString(),
+                            color = primaryColor
+                        )
                     }
-
-                    tool?.let {
-                        UserBorrowRequestButtonAndFavoritesView(user, toolDetailViewModel, it)
-                    }
-
                 }
         }
-        if (numberOfRequests.isNotEmpty())
-            Box(modifier = Modifier
-                .offset {
-                    IntOffset(x = -offsetInPx, y = -offsetInPx)
-                }
-                .shadow(4.dp, shape = CircleShape)
-                .background(Color.Yellow, CircleShape)
-                .size(iconSize),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = numberOfRequests.size.toString(),
-                    color = primaryColor,
-                    fontWeight = FontWeight.Bold
-                )
-            }
     }
-
-
 }
 
 
 @Composable
-fun ShimmeringCard(toolDetailViewModel: ToolDetailViewModel,
-                   content: @Composable () -> Unit) {
-    val inProgress by toolDetailViewModel.isProcessing.collectAsState()
-
-    Box(
+fun ShimmeringCard() {
+    Card(
         modifier = Modifier
-            .fillMaxSize()
-            .background(
-                shimmerBrush(targetValue = 1300f, showShimmer = inProgress),
-                RoundedCornerShape(2.dp)
-            )
+            .fillMaxWidth()
+            .padding(10.dp)
+            .wrapContentHeight(),
+        colors = CardDefaults.cardColors(Color.White),
+        elevation = CardDefaults.cardElevation(10.dp)
     ) {
-        content()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    shimmerBrush(targetValue = 1300f, showShimmer = true),
+                    RoundedCornerShape(2.dp)
+                )
+        ) {
+            Spacer(modifier = Modifier.size(50.dp))
+        }
     }
 }
 

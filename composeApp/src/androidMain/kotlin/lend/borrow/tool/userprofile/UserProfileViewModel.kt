@@ -64,11 +64,21 @@ open class UserProfileViewModel( val loggedInUser: User, val application: Applic
     }
 
 
-    fun updateUserInfo(newUserInfo: User, oldUserInfo: User) {
+    fun updateUserInfo(location: GeoPoint) {
         uploadInProgress.value = true
+        val userProfileSnapShot = userProfileUiState.value
         launchWithCatchingException {
             isEditingUserProfile.update { false }
-            userRepo.updateUserInfo(newUserInfo, oldUserInfo) {
+            userRepo.updateUserInfo(loggedInUser.copy(
+                address = userProfileSnapShot.address,
+                name = userProfileSnapShot.name,
+                searchRadius = userProfileSnapShot.searchRadius,
+                geoPoint = location,
+                latitude = location.latitude,
+                longitude = location.longitude,
+                availableAtTheMoment = userProfileSnapShot.isAvailable
+            ),
+                loggedInUser) {
                 uploadInProgress.value = false
             }
         }

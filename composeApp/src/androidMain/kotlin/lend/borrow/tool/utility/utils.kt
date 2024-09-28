@@ -17,10 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
 import androidx.compose.material.Text
-import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -73,10 +71,10 @@ fun GeoPoint.distanceToOtherPoint(point: GeoPoint): Float {
 }
 
 @Composable
-fun GenericWarningDialog(
+fun GenericAlertDialog(
     message: String,
     positiveText: String = stringResource(lend.borrow.tool.R.string.ok),
-    positiveColor: Color = Color(LocalContext.current.getColor(R.color.primary)),
+    positiveColor: Color = LocalContext.current.primaryColor,
     onNegativeClick: () -> Unit = {},
     onPositiveClick: () -> Unit = {}
 ) {
@@ -85,8 +83,7 @@ fun GenericWarningDialog(
     ) {
         Card(
             elevation = 8.dp,
-            shape = RoundedCornerShape(12.dp),
-            backgroundColor = Color.LightGray
+            shape = RoundedCornerShape(12.dp)
         ) {
             Column(Modifier.padding(15.dp)) {
                 Text(modifier = Modifier.padding(5.dp),
@@ -98,23 +95,49 @@ fun GenericWarningDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
 
-                    TextButton(modifier = Modifier.padding(5.dp),
-                        colors = ButtonDefaults.buttonColors(Color.LightGray, Color.Black),
-                        shape = RoundedCornerShape(2.dp),
-                        onClick = onNegativeClick) {
-                        Text(text = "CANCEL")
-                    }
+                    CustomButton(text = "Cancel", color = Color.Gray, onClick = onNegativeClick)
+
                     Spacer(modifier = Modifier.width(4.dp))
-                    TextButton(modifier = Modifier.padding(5.dp),
-                        shape = RoundedCornerShape(2.dp),
-                        colors = ButtonDefaults.textButtonColors(
-                            positiveColor,
-                            Color.White
-                        ),
-                        onClick = {
-                            onPositiveClick()
-                        }) {
-                        Text(text = positiveText)
+
+                    CustomButton (text = positiveText, color = positiveColor, filled = true) {
+                        onPositiveClick()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GenericWarningDialog(
+    message: String,
+    positiveText: String = stringResource(lend.borrow.tool.R.string.ok),
+    positiveColor: Color = LocalContext.current.warningColor,
+    onNegativeClick: () -> Unit = {},
+    onPositiveClick: () -> Unit = {}
+) {
+    Dialog(onDismissRequest = {},
+        DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false)
+    ) {
+        Card(
+            elevation = 8.dp,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(Modifier.padding(15.dp)) {
+                Text(modifier = Modifier.padding(5.dp),
+                    text = message,
+                    textAlign = TextAlign.Justify)
+                // Buttons
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    CustomButton(text = "Cancel", color = Color.Gray, onClick = onNegativeClick)
+
+
+                    CustomButton (text = positiveText, color = positiveColor) {
+                        onPositiveClick()
                     }
                 }
             }
@@ -158,3 +181,13 @@ fun CustomDialogWithResult(
         content
     )
 }
+
+
+val Context.primaryColor: Color
+    get() = Color(this.getColor(R.color.primary))
+
+val Context.secondaryColor: Color
+    get() = Color(this.getColor(R.color.secondary))
+
+val Context.warningColor: Color
+    get() = Color(this.getColor(android.R.color.holo_red_light))

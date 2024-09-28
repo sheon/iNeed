@@ -32,9 +32,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,6 +45,8 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Button
@@ -64,6 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -73,7 +76,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -84,10 +87,14 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import lend.borrow.tool.R.drawable
+import lend.borrow.tool.R.string
 import lend.borrow.tool.shared.R
-import lend.borrow.tool.utility.CustomDialogWithResult
+import lend.borrow.tool.utility.CustomButton
 import lend.borrow.tool.utility.DropDownMenu
-import lend.borrow.tool.utility.LogCompositions
+import lend.borrow.tool.utility.GenericWarningDialog
+import lend.borrow.tool.utility.WarningButton
+import lend.borrow.tool.utility.primaryColor
 
 @SuppressLint("StateFlowValueCalledInComposition")
 @Composable
@@ -142,6 +149,7 @@ fun StaticToolInfoScreen(chosenTool: ToolDetailUiState, user: User?, toolDetailV
     val toolOwner = chosenTool.owner
     val toolAvailability: Boolean = userOwnThisTool || toolOwner.availableAtTheMoment && chosenTool.isAvailable
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
+    val horizontalScrollState = rememberLazyListState()
 
     Column(
         Modifier
@@ -149,33 +157,70 @@ fun StaticToolInfoScreen(chosenTool: ToolDetailUiState, user: User?, toolDetailV
             .padding(horizontal = 15.dp)
     ) {
         AnimatedVisibility(true) {
-            LazyRow(
-                Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                items(chosenTool.imageUrlsRefMap.keys.toList()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .padding(5.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        AsyncImage(
-                            model = it,
+            Box(contentAlignment = Alignment.Center) {
+                LazyRow(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(horizontal = 10.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    state = horizontalScrollState
+                ) {
+                    items(chosenTool.imageUrlsRefMap.keys.toList()) {
+                        Box(
                             modifier = Modifier
-                                .alpha(toolAlpha)
-                                .border(1.dp, Color.LightGray)
-                                .clickable {
-                                    zoomIn = it
-                                },
-                            contentDescription = "",
-                            contentScale = ContentScale.Fit
-                        )
+                                .fillMaxHeight()
+                                .padding(5.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncImage(
+                                model = it,
+                                modifier = Modifier
+                                    .alpha(toolAlpha)
+                                    .border(1.dp, Color.LightGray)
+                                    .clickable {
+                                        zoomIn = it
+                                    },
+                                contentDescription = "",
+                                contentScale = ContentScale.Fit
+                            )
+                        }
                     }
                 }
-
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    if (horizontalScrollState.canScrollBackward)
+                        Box(
+                            modifier = Modifier
+                                .wrapContentSize()
+                                .shadow(5.dp, shape = CircleShape)
+                                .background(Color.White, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                                contentDescription = "Scroll to left"
+                            )
+                        }
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    if (horizontalScrollState.canScrollForward)
+                        Box(
+                            modifier = Modifier
+                                .wrapContentSize()
+                                .shadow(5.dp, shape = CircleShape)
+                                .background(Color.White, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                contentDescription = "Scroll to right"
+                            )
+                        }
+                }
             }
         }
         Text(text = "Tool name: ", fontWeight = FontWeight.Bold)
@@ -238,72 +283,113 @@ fun EditingToolInfoScreen(
     var deletingAPic: String? by remember {
         mutableStateOf(null)
     }
+    var deletingTool: Boolean by remember {
+        mutableStateOf(false)
+    }
     val numberOfImagesForTool = 5
-    val scrollState = rememberScrollState()
+    val verticalScrollState = rememberScrollState()
+    val horizontalScrollState = rememberLazyListState()
     Column(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 15.dp)
-            .verticalScroll(scrollState)
+            .verticalScroll(verticalScrollState)
     ) {
         Spacer(Modifier.size(10.dp))
         AnimatedVisibility(true) {
-            LazyRow(
-                Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                items(numberOfImagesForTool) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .padding(5.dp),
-                        contentAlignment = Alignment.TopStart
-                    ) {
-                        ownerToolDetailUi.imageUrlsRefMap.keys.toList().getOrNull(it).let {
-                            Box(modifier = Modifier.size(150.dp, 200.dp)) {
-                                AsyncImage(
-                                    model = it,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Color.LightGray)
-                                        .clickable {
-                                            if (it != null)
-                                                zoomIn = it
-                                            else
-                                                toolDetailViewModel.startCamera(true)
-                                        },
-                                    alpha = if (it == null) 0.3f else 1f,
-                                    placeholder = painterResource(id = lend.borrow.tool.R.drawable.baseline_image_24),
-                                    fallback = painterResource(id = lend.borrow.tool.R.drawable.baseline_image_24),
-                                    contentDescription = "",
-                                    contentScale = ContentScale.Fit
-                                )
-                                it?.let {
-                                    IconButton(onClick = {
-                                        deletingAPic = ownerToolDetailUi.imageUrlsRefMap[it]
-                                    }) {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(CircleShape)
-                                                .background(Color.White)
-                                                .wrapContentSize()
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Delete,
-                                                contentDescription = "Delete image"
-                                            )
+            Box(contentAlignment = Alignment.Center) {
+                LazyRow(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .padding(horizontal = 10.dp),
+                    state = horizontalScrollState
+                ) {
+                    items(numberOfImagesForTool) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .padding(5.dp),
+                            contentAlignment = Alignment.TopStart
+                        ) {
+                            ownerToolDetailUi.imageUrlsRefMap.keys.toList().getOrNull(it).let {
+                                Box(modifier = Modifier.size(150.dp, 200.dp)) {
+                                    AsyncImage(
+                                        model = it,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Color.LightGray)
+                                            .clickable {
+                                                if (it != null)
+                                                    zoomIn = it
+                                                else
+                                                    toolDetailViewModel.startCamera(true)
+                                            },
+                                        alpha = if (it == null) 0.3f else 1f,
+                                        placeholder = painterResource(id = drawable.baseline_image_24),
+                                        fallback = painterResource(id = drawable.baseline_image_24),
+                                        contentDescription = "",
+                                        contentScale = ContentScale.FillBounds
+                                    )
+                                    it?.let {
+                                        IconButton(onClick = {
+                                            deletingAPic = ownerToolDetailUi.imageUrlsRefMap[it]
+                                        }) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(CircleShape)
+                                                    .background(Color.White)
+                                                    .wrapContentSize()
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Filled.Delete,
+                                                    contentDescription = "Delete image"
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
+                        }
                     }
                 }
-
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Start
+                ) {
+                    if (horizontalScrollState.canScrollBackward)
+                        Box(
+                            modifier = Modifier
+                                .wrapContentSize()
+                                .shadow(5.dp, shape = CircleShape)
+                                .background(Color.White, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                                contentDescription = "Scroll to left"
+                            )
+                        }
+                }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    if (horizontalScrollState.canScrollForward)
+                        Box(
+                            modifier = Modifier
+                                .wrapContentSize()
+                                .shadow(5.dp, shape = CircleShape)
+                                .background(Color.White, CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                contentDescription = "Scroll to right"
+                            )
+                        }
+                }
             }
+
         }
 
         Spacer(modifier = Modifier.size(10.dp))
@@ -320,7 +406,7 @@ fun EditingToolInfoScreen(
             }
 
         )
-        
+
         Spacer(modifier = Modifier.size(10.dp))
 
         OutlinedTextField(
@@ -363,46 +449,38 @@ fun EditingToolInfoScreen(
         )
 
         Spacer(modifier = Modifier.height(32.dp))
-
+        val backgroundColor = LocalContext.current.primaryColor
         Column(
             Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 50.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(
+            CustomButton(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                onClick = {
-                    toolDetailViewModel.discardChangesInToolDetail(chosenTool)
-                }, colors = ButtonDefaults.buttonColors(
-                    Color.Gray, Color.White
-                )
-            ) {
-                Text(text = AnnotatedString("Discard changes"))
-            }
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                "Save changes",
                 onClick = {
                     toolDetailViewModel.saveChangesInToolDetail()
-                }, colors = ButtonDefaults.buttonColors(
-                    Color(LocalContext.current.resources.getColor(R.color.primary)), Color.White
-                )
-            ) {
-                Text(text = AnnotatedString("Save changes"))
-            }
-            Button(
+                },
+                filled = true
+            )
+
+            CustomButton(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                "Discard changes",
                 onClick = {
-                    toolDetailViewModel.deleteTool(ownerToolDetailUi)
-                }, colors = ButtonDefaults.buttonColors(
-                    Color.Red, Color.White
-                )
-            ) {
-                Text(text = AnnotatedString("Delete this tool"))
-            }
+                    toolDetailViewModel.discardChangesInToolDetail(chosenTool)
+                },
+                color = Color.Gray
+            )
+
+            WarningButton(
+                modifier = Modifier.fillMaxWidth(),
+                "Delete this tool",
+                onClick = {
+                    deletingTool = true
+                }
+            )
         }
         Spacer(Modifier.size(10.dp))
     }
@@ -412,58 +490,28 @@ fun EditingToolInfoScreen(
         }
     }
     deletingAPic?.let {
-        CustomDialogWithResult(onDismiss = { deletingAPic = null}) {
-            Card(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Column(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(10.dp)) {
-                    Text("Are you sure you want to delete this picture?", Modifier.padding(10.dp))
-                    Spacer(modifier = Modifier.size(10.dp))
-                    Row(
-                        horizontalArrangement = Arrangement.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Button(
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .padding(horizontal = 10.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            onClick = {
-                                deletingAPic = null
-                            }, colors = ButtonDefaults.buttonColors(
-                                Color.Gray, Color.White
-                            )
-                        ) {
-                            Text(text = AnnotatedString("Cancel"))
-                        }
-
-                        Button(
-                            modifier = Modifier
-                                .wrapContentWidth()
-                                .padding(horizontal = 10.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            onClick = {
-                                toolDetailViewModel.onToolImageDeleted(it)
-                                deletingAPic = null
-                            }, colors = ButtonDefaults.buttonColors(
-                                Color.Red, Color.White
-                            )
-                        ) {
-                            Text(text = AnnotatedString("I am sure"))
-                        }
-                    }
-                }
-            }
-
-        }
+        GenericWarningDialog(message = "Are you sure you want to delete this picture?",
+            positiveText = stringResource(string.yes_i_am_sure),
+            onPositiveClick = {
+            toolDetailViewModel.onToolImageDeleted(it)
+            deletingAPic = null
+        }, onNegativeClick = { deletingAPic = null })
     }
 
     if (takingPics)
         TakePictureOfTool(toolDetailViewModel)
-
+    if (deletingTool)
+        GenericWarningDialog(
+            message = "Are you sure you want to delete this tool?",
+            positiveText = stringResource(string.yes_i_am_sure),
+            onPositiveClick = {
+                toolDetailViewModel.deleteTool(ownerToolDetailUi)
+                deletingTool = false
+            },
+            onNegativeClick = {
+                deletingTool = false
+            }
+        )
 }
 
 @Composable
@@ -630,21 +678,22 @@ fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: To
     val toolAlpha: Float = if (toolAvailability) 1f else 0.5f
     user?.let { borrowerUser ->
         if (borrowerUser.id != tool_tmp.owner.id) {
-            val borrowRequestAvailability = toolAvailability && requestSentForThisTool.any { it.requesterId == borrowerUser.id }.not()
+            val borrowRequestAvailability = requestSentForThisTool.any { it.requesterId == borrowerUser.id }.not()
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Button(
-                    enabled = borrowRequestAvailability,
+                    enabled = borrowRequestAvailability && toolAvailability,
                     modifier = Modifier.alpha(toolAlpha),
                     onClick = {
-                        if (borrowRequestAvailability) {
-                            tool_tmp = tool_tmp.copy(somethingIsChanging = true)
-                            toolDetailViewModel.onRequestToBorrow(borrowerUser, tool_tmp) { // defaultTool is the ToolInApp instance while the rest is the UI states
-                                tool_tmp = tool_tmp.copy(somethingIsChanging = false)
-                            }
+                        tool_tmp = tool_tmp.copy(somethingIsChanging = true)
+                        toolDetailViewModel.onRequestToBorrow(
+                            borrowerUser,
+                            tool_tmp
+                        ) { // defaultTool is the ToolInApp instance while the rest is the UI states
+                            tool_tmp = tool_tmp.copy(somethingIsChanging = false)
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
@@ -665,6 +714,9 @@ fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: To
                                 .aspectRatio(1f),
                                 color = Color.White
                             )
+                        else if (borrowRequestAvailability)
+                            Icon(painter = painterResource(R.drawable.send_icon), contentDescription = "", tint = Color.White, modifier = Modifier.size(20.dp))
+
                     }
                 }
                 Image(
@@ -672,6 +724,7 @@ fun UserBorrowRequestButtonAndFavoritesView(user: User?, toolDetailViewModel: To
                     contentDescription = "",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
+                        .clip(CircleShape)
                         .clickable {
                             if (favorites.contains(tool_tmp.id)) { // This should be revised and use the single source of the truth.
                                 user.favoriteTools.remove(tool_tmp.id)
