@@ -60,7 +60,7 @@ open class ToolsViewModel(private val application: Application, open val userId:
                 _allToolsAroundUser.clear()
                 fetchingToolsInProgress.value = true
                 toolsRepo.getAvailableTools(location, {
-                    _allToolsAroundUser.addAll(it.map { it.toToolDetailUi(application) })
+                    _allToolsAroundUser.addAll(it.map { it.toToolDetailUi() })
                     filterDataForTab(tabIndex = currentTab)
                     fetchingToolsInProgress.value = false
                 }, userRepo, isRefreshing)
@@ -82,6 +82,7 @@ open class ToolsViewModel(private val application: Application, open val userId:
     }
 
     fun filterData(iNeedInput: String) {
+        _latestErrorMessage.value = null
         val tmpToolList = mutableListOf<ToolDetailUiState>()
         if (iNeedInput.isNotBlank()) {
             val searchableTexts = iNeedInput.split(" ").filterNot { it.isEmpty() }

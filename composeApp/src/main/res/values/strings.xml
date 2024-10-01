@@ -12,4 +12,5 @@
     <string name="guest_warning_message">As a guest, you can only browse through the list of tools available in 2km radius around your current location. You won\'t be able to borrow them or like them as your favorites. The search function only looks through the names and provided tags. To benefit from all features you need to sign up as a registered user.</string>
     <string name="no_description">No description</string>
     <string name="no_instruction">No instruction</string>
+    <string name="yes_i_am_sure">Yes, I am sure</string>
 </resources>

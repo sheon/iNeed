@@ -20,7 +20,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
-import androidx.compose.material.TextButton
 import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material3.Icon
@@ -42,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import lend.borrow.tool.utility.CustomButton
 import lend.borrow.tool.utility.CustomDialogWithResult
 import java.io.File
 import java.util.Objects
@@ -205,19 +205,19 @@ fun AddToolDialog(onDismiss: () -> Unit,
 
                 // Buttons
                 Row(
-                    horizontalArrangement = Arrangement.End,
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     modifier = Modifier.fillMaxWidth()
                 ) {
 
-                    TextButton(onClick = onNegativeClick) {
-                        Text(text = "CANCEL")
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    TextButton(onClick = {
+                    CustomButton(Modifier.weight(1f), text = "CANCEL", onClick = onNegativeClick)
+
+                    Spacer(modifier = Modifier.width(50.dp))
+
+                    CustomButton(Modifier.weight(1f), text = "OK",
+                        onClick = {
                         onPositiveClick(toolName, toolDescription, toolTags?.replace(" ", "")?.split(",")?.filterNot { it == "" } ?: emptyList(), capturedImageUriList.map { it.toString() }.toList())
-                    }) {
-                        Text(text = "OK")
-                    }
+                    },
+                        filled = true)
                 }
             }
         }

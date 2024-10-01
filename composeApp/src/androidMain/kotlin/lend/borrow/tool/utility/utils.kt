@@ -5,7 +5,6 @@ import ToolInApp
 import ToolInFireStore
 import User
 import android.annotation.SuppressLint
-import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -17,10 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
 import androidx.compose.material.Text
-import androidx.compose.material.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -54,13 +51,11 @@ fun ToolInApp.toToolInFireStore(): ToolInFireStore { // This may be avoided if w
     return ToolInFireStore(id = id, name = name, description = description, imageReferences = imageRefUrlMap.keys.toList(), tags = tags, available = available, owner = owner.id, borrower = borrower?.id, instruction = instruction)
 }
 
-fun ToolDetailUiState.toToolInApp() = defaultTool.copy(name = name, description = description.ifEmpty { null }, imageRefUrlMap = images, tags = tags?.replace(" ", "")?.split(",")?.filterNot { it =="" } ?: emptyList()).also {
+fun ToolDetailUiState.toToolInApp() = defaultTool.copy(name = name, description = description?.ifEmpty { null }, instruction = instruction?.ifEmpty { null }, imageRefUrlMap = images, tags = tags).also {
     it.newImages.addAll(this.newImages)
     it.deletedImages.addAll(this.deletedImages)
 }
-fun ToolInApp.toToolDetailUi(application: Application) = ToolDetailUiState(id = id, name = name, description = description ?: application.getString(lend.borrow.tool.R.string.no_description), instruction = instruction ?: application.getString(
-    lend.borrow.tool.R.string.no_instruction
-), images = imageRefUrlMap, tags = tags.ifEmpty { null }?.joinToString(", "), owner = owner, borrower = borrower, isAvailable =available, defaultTool = this)
+fun ToolInApp.toToolDetailUi() = ToolDetailUiState(id = id, name = name, description = description , instruction = instruction, images = imageRefUrlMap, tags = tags.toMutableList(), owner = owner, borrower = borrower, isAvailable =available, defaultTool = this)
 
 fun GeoPoint.distanceToOtherPoint(point: GeoPoint): Float {
     val user1 = Location("user1")
@@ -73,10 +68,10 @@ fun GeoPoint.distanceToOtherPoint(point: GeoPoint): Float {
 }
 
 @Composable
-fun GenericWarningDialog(
+fun GenericAlertDialog(
     message: String,
     positiveText: String = stringResource(lend.borrow.tool.R.string.ok),
-    positiveColor: Color = Color(LocalContext.current.getColor(R.color.primary)),
+    positiveColor: Color = LocalContext.current.primaryColor,
     onNegativeClick: () -> Unit = {},
     onPositiveClick: () -> Unit = {}
 ) {
@@ -85,8 +80,7 @@ fun GenericWarningDialog(
     ) {
         Card(
             elevation = 8.dp,
-            shape = RoundedCornerShape(12.dp),
-            backgroundColor = Color.LightGray
+            shape = RoundedCornerShape(12.dp)
         ) {
             Column(Modifier.padding(15.dp)) {
                 Text(modifier = Modifier.padding(5.dp),
@@ -98,23 +92,49 @@ fun GenericWarningDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
 
-                    TextButton(modifier = Modifier.padding(5.dp),
-                        colors = ButtonDefaults.buttonColors(Color.LightGray, Color.Black),
-                        shape = RoundedCornerShape(2.dp),
-                        onClick = onNegativeClick) {
-                        Text(text = "CANCEL")
-                    }
+                    CustomButton(text = "Cancel", color = Color.Gray, onClick = onNegativeClick)
+
                     Spacer(modifier = Modifier.width(4.dp))
-                    TextButton(modifier = Modifier.padding(5.dp),
-                        shape = RoundedCornerShape(2.dp),
-                        colors = ButtonDefaults.textButtonColors(
-                            positiveColor,
-                            Color.White
-                        ),
-                        onClick = {
-                            onPositiveClick()
-                        }) {
-                        Text(text = positiveText)
+
+                    CustomButton (text = positiveText, color = positiveColor, filled = true) {
+                        onPositiveClick()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun GenericWarningDialog(
+    message: String,
+    positiveText: String = stringResource(lend.borrow.tool.R.string.ok),
+    positiveColor: Color = LocalContext.current.warningColor,
+    onNegativeClick: () -> Unit = {},
+    onPositiveClick: () -> Unit = {}
+) {
+    Dialog(onDismissRequest = {},
+        DialogProperties(dismissOnClickOutside = false, dismissOnBackPress = false)
+    ) {
+        Card(
+            elevation = 8.dp,
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Column(Modifier.padding(15.dp)) {
+                Text(modifier = Modifier.padding(5.dp),
+                    text = message,
+                    textAlign = TextAlign.Justify)
+                // Buttons
+                Row(
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+
+                    CustomButton(text = "Cancel", color = Color.Gray, onClick = onNegativeClick)
+
+
+                    CustomButton (text = positiveText, color = positiveColor) {
+                        onPositiveClick()
                     }
                 }
             }
@@ -158,3 +178,13 @@ fun CustomDialogWithResult(
         content
     )
 }
+
+
+val Context.primaryColor: Color
+    get() = Color(this.getColor(R.color.primary))
+
+val Context.secondaryColor: Color
+    get() = Color(this.getColor(R.color.secondary))
+
+val Context.warningColor: Color
+    get() = Color(this.getColor(android.R.color.holo_red_light))

@@ -18,10 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.Icon
 import androidx.compose.material.OutlinedTextField
@@ -33,6 +30,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -44,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat.getColor
@@ -53,8 +50,13 @@ import androidx.navigation.NavController
 import lend.borrow.tool.AddToolDialog
 import lend.borrow.tool.BorrowLendAppScreen
 import lend.borrow.tool.R
+import lend.borrow.tool.utility.CustomButton
 import lend.borrow.tool.utility.DropDownMenu
+import lend.borrow.tool.utility.GenericAlertDialog
 import lend.borrow.tool.utility.GenericWarningDialog
+import lend.borrow.tool.utility.WarningButton
+import lend.borrow.tool.utility.primaryColor
+import lend.borrow.tool.utility.secondaryColor
 
 @Composable
 fun UserProfileScreen(
@@ -127,7 +129,12 @@ fun EditingUserProfileScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(text = "Unavailable")
-                Switch(checked = userProfileUiState.isAvailable, onCheckedChange = {
+                Switch(checked = userProfileUiState.isAvailable,
+                    colors = SwitchDefaults.colors(
+                        LocalContext.current.primaryColor,
+                        LocalContext.current.secondaryColor
+                    ),
+                    onCheckedChange = {
                     userProfileViewModel.onAvailabilityUpdated(it)
                 })
                 Text(text = "Available")
@@ -195,8 +202,8 @@ fun EditingUserProfileScreen(
                             userProfileViewModel.onSearchRadiusUpdated(it.toInt())
                         },
                         colors = SliderDefaults.colors(
-                            thumbColor = MaterialTheme.colorScheme.secondary,
-                            activeTrackColor = MaterialTheme.colorScheme.secondary,
+                            thumbColor = LocalContext.current.primaryColor,
+                            activeTrackColor = LocalContext.current.secondaryColor,
                             inactiveTrackColor = MaterialTheme.colorScheme.secondaryContainer,
                         ),
                         steps = 8,
@@ -211,20 +218,9 @@ fun EditingUserProfileScreen(
                 .padding(horizontal = 50.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Button(
+            CustomButton(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                onClick = {
-                    userProfileViewModel.discardChangesInUserInfo()
-                }, colors = ButtonDefaults.buttonColors(
-                    Color.Gray, Color.White
-                )
-            ) {
-                Text(text = AnnotatedString("Discard changes"))
-            }
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
+                "Save changes",
                 onClick = {
                     user?.let { loggedInUser ->
                         userProfileViewModel.geocodeAddress(
@@ -232,17 +228,7 @@ fun EditingUserProfileScreen(
                             loggedInUser
                         ) { geoPoint ->
                             if (geoPoint != null) {
-                                userProfileViewModel.updateUserInfo(
-                                    loggedInUser.copy(
-                                        address = userProfileUiState.address,
-                                        name = userProfileUiState.name,
-                                        searchRadius = userProfileUiState.searchRadius,
-                                        geoPoint = geoPoint,
-                                        latitude = geoPoint.latitude,
-                                        longitude = geoPoint.longitude
-                                    ),
-                                    loggedInUser
-                                )
+                                userProfileViewModel.updateUserInfo(geoPoint)
                             } else {
                                 userProfileViewModel.provideAddressMessage =
                                     application.getString(R.string.bad_address_message)
@@ -250,31 +236,27 @@ fun EditingUserProfileScreen(
                             }
                         }
                     }
-                }, colors = ButtonDefaults.buttonColors(
-                    Color(LocalContext.current.resources.getColor(lend.borrow.tool.shared.R.color.primary)),
-                    Color.White
-                )
-            ) {
-                Text(text = AnnotatedString("Save changes"))
-            }
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(10.dp),
-                onClick = {
-                    openDeleteAccountDialog.value = true
-                }, colors = ButtonDefaults.buttonColors(
-                    Color.Red, Color.White
-                )
-            ) {
-                Text(text = AnnotatedString("Delete my profile"))
-            }
+                },
+                filled = true
+            )
 
+            CustomButton(
+                modifier = Modifier.fillMaxWidth(),
+                "Discard changes",
+                onClick = {
+                    userProfileViewModel.discardChangesInUserInfo()
+                },
+                color = Color.Gray
+            )
+            WarningButton(Modifier.fillMaxWidth(), "Delete my profile") {
+                openDeleteAccountDialog.value = true
+            }
         }
     }
 
 
     if (openAddressRequiredDialog.value) {
-        GenericWarningDialog(
+        GenericAlertDialog(
             userProfileViewModel.provideAddressMessage,
             onNegativeClick = {
                 userProfileViewModel.signOut()
@@ -302,7 +284,6 @@ fun EditingUserProfileScreen(
         GenericWarningDialog(
             "Are you sure that you want to delete the account: \n${user!!.email}",
             positiveText = stringResource(R.string.delete),
-            positiveColor = Color.Red,
             onNegativeClick = {
                 openDeleteAccountDialog.value = false
             },
@@ -372,10 +353,9 @@ fun StaticUserProfileScreen(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(15.dp)
+                    .padding(horizontal = 15.dp)
                     .verticalScroll(scrollState)
             ) {
-                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Name: ",
@@ -387,8 +367,10 @@ fun StaticUserProfileScreen(
                     text = "${loggedInUser.name.ifEmpty { "Unknown user" }} (is ${if (loggedInUser.availableAtTheMoment) "available" else "not available"})",
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Address: ",
@@ -400,8 +382,10 @@ fun StaticUserProfileScreen(
                     text = loggedInUser.address.ifEmpty { "Unknown" },
                     Modifier
                         .fillMaxSize()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Search radius: ",
@@ -412,8 +396,10 @@ fun StaticUserProfileScreen(
                 Text(
                     text = "${loggedInUser.searchRadius} km", Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Email: ",
@@ -425,8 +411,9 @@ fun StaticUserProfileScreen(
                     text = loggedInUser.email,
                     Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Subscription: ",
@@ -438,7 +425,7 @@ fun StaticUserProfileScreen(
                     text = loggedInUser.subscription,
                     Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
 
             }
