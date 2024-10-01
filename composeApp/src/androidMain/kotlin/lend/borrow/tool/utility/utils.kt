@@ -5,7 +5,6 @@ import ToolInApp
 import ToolInFireStore
 import User
 import android.annotation.SuppressLint
-import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
@@ -52,13 +51,11 @@ fun ToolInApp.toToolInFireStore(): ToolInFireStore { // This may be avoided if w
     return ToolInFireStore(id = id, name = name, description = description, imageReferences = imageRefUrlMap.keys.toList(), tags = tags, available = available, owner = owner.id, borrower = borrower?.id, instruction = instruction)
 }
 
-fun ToolDetailUiState.toToolInApp() = defaultTool.copy(name = name, description = description.ifEmpty { null }, imageRefUrlMap = images, tags = tags?.replace(" ", "")?.split(",")?.filterNot { it =="" } ?: emptyList()).also {
+fun ToolDetailUiState.toToolInApp() = defaultTool.copy(name = name, description = description?.ifEmpty { null }, instruction = instruction?.ifEmpty { null }, imageRefUrlMap = images, tags = tags).also {
     it.newImages.addAll(this.newImages)
     it.deletedImages.addAll(this.deletedImages)
 }
-fun ToolInApp.toToolDetailUi(application: Application) = ToolDetailUiState(id = id, name = name, description = description ?: application.getString(lend.borrow.tool.R.string.no_description), instruction = instruction ?: application.getString(
-    lend.borrow.tool.R.string.no_instruction
-), images = imageRefUrlMap, tags = tags.ifEmpty { null }?.joinToString(", "), owner = owner, borrower = borrower, isAvailable =available, defaultTool = this)
+fun ToolInApp.toToolDetailUi() = ToolDetailUiState(id = id, name = name, description = description , instruction = instruction, images = imageRefUrlMap, tags = tags.toMutableList(), owner = owner, borrower = borrower, isAvailable =available, defaultTool = this)
 
 fun GeoPoint.distanceToOtherPoint(point: GeoPoint): Float {
     val user1 = Location("user1")

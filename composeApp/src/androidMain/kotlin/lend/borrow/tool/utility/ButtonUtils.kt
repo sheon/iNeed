@@ -25,10 +25,10 @@ fun CustomButton(modifier: Modifier = Modifier, text: String, color: Color = Loc
                 contentColor = Color.White,
                 containerColor = color
             )
-            else
-                ButtonDefaults.outlinedButtonColors(
-            contentColor = color
-        )
+        else
+            ButtonDefaults.outlinedButtonColors(
+                contentColor = color
+            )
     ) {
         Text(text = AnnotatedString(text))
     }
@@ -36,6 +36,6 @@ fun CustomButton(modifier: Modifier = Modifier, text: String, color: Color = Loc
 
 
 @Composable
-fun WarningButton(modifier: Modifier = Modifier, text: String, color: Color = LocalContext.current.warningColor, filled: Boolean = false, onClick: () -> Unit) {
+fun WarningButton(modifier: Modifier = Modifier, text: String, color: Color = LocalContext.current.warningColor, filled: Boolean = true, onClick: () -> Unit) {
     CustomButton(modifier, text, color, filled, onClick)
 }

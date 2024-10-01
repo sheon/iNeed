@@ -53,9 +53,9 @@ fun DropDownMenu(tool: ToolInApp, toolDetailViewModel: ToolDetailViewModel, navC
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                if (requestSentForThisTool.isNotEmpty())
                     DropdownMenuItem(
                         text = { Text( if (isOwner) "Received requests" else "Your request") },
+                        enabled = requestSentForThisTool.isNotEmpty(),
                         onClick = {
                             navController.navigate("${BorrowLendAppScreen.REQUESTS.name}/${tool.id}/${isOwner}")
                             expanded = false

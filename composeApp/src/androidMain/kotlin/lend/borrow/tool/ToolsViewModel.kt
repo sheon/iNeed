@@ -60,7 +60,7 @@ open class ToolsViewModel(private val application: Application, open val userId:
                 _allToolsAroundUser.clear()
                 fetchingToolsInProgress.value = true
                 toolsRepo.getAvailableTools(location, {
-                    _allToolsAroundUser.addAll(it.map { it.toToolDetailUi(application) })
+                    _allToolsAroundUser.addAll(it.map { it.toToolDetailUi() })
                     filterDataForTab(tabIndex = currentTab)
                     fetchingToolsInProgress.value = false
                 }, userRepo, isRefreshing)

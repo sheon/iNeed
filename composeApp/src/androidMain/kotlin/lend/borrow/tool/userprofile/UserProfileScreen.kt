@@ -353,10 +353,9 @@ fun StaticUserProfileScreen(
             Column(
                 Modifier
                     .fillMaxSize()
-                    .padding(15.dp)
+                    .padding(horizontal = 15.dp)
                     .verticalScroll(scrollState)
             ) {
-                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Name: ",
@@ -368,8 +367,10 @@ fun StaticUserProfileScreen(
                     text = "${loggedInUser.name.ifEmpty { "Unknown user" }} (is ${if (loggedInUser.availableAtTheMoment) "available" else "not available"})",
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Address: ",
@@ -381,8 +382,10 @@ fun StaticUserProfileScreen(
                     text = loggedInUser.address.ifEmpty { "Unknown" },
                     Modifier
                         .fillMaxSize()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Search radius: ",
@@ -393,8 +396,10 @@ fun StaticUserProfileScreen(
                 Text(
                     text = "${loggedInUser.searchRadius} km", Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Email: ",
@@ -406,8 +411,9 @@ fun StaticUserProfileScreen(
                     text = loggedInUser.email,
                     Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
                     text = "Subscription: ",
@@ -419,7 +425,7 @@ fun StaticUserProfileScreen(
                     text = loggedInUser.subscription,
                     Modifier
                         .fillMaxWidth()
-                        .padding(10.dp)
+                        .padding(start = 10.dp)
                 )
 
             }

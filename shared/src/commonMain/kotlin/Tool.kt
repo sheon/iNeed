@@ -36,10 +36,10 @@ data class ToolInApp(
 data class ToolDetailUiState(
     val id: String = "",
     val name: String = "",
-    val description: String = "",
-    val instruction: String = "",
+    val description: String? = null,
+    val instruction: String? = null,
     val images: Map<String, String> = mutableMapOf(),
-    val tags: String? = null,
+    val tags: MutableList<String> = mutableListOf(),
     val owner: User = User(),
     val borrower: User? = null,
     val isAvailable: Boolean = true,

@@ -98,7 +98,7 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
                         callback(receivedTool)
                         isFetchingTool.update { false }
                         requestsReceivedForThisTool.update { requestList }
-                        receivedTool.toToolDetailUi(application).also { toolDetailUiState ->
+                        receivedTool.toToolDetailUi().also { toolDetailUiState ->
                             initiateOwnerToolDetailEditingUiState(toolDetailUiState)
                             tool.update { toolDetailUiState }
                         }
@@ -124,8 +124,11 @@ class ToolDetailViewModel(private val application: Application, val toolId: Stri
     fun onToolInstructionChanged(newValue: String){
         _toolDetailUiState.update { it.copy(instruction = newValue) }
     }
-    fun onToolTagsChanged(newValue: String){
-        _toolDetailUiState.update { it.copy(tags = newValue) }
+
+    fun onToolTagChanged(tagList: List<String>) {
+        _toolDetailUiState.update { tool ->
+            tool.copy(tags = tagList.toMutableList())
+        }
     }
     fun onToolImageAdded(newValue: String){
         _toolDetailUiState.update {
