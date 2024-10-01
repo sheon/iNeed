@@ -77,7 +77,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import dev.gitlive.firebase.firestore.GeoPoint
-import kotlinx.serialization.json.Json
 import lend.borrow.tool.shared.R
 import lend.borrow.tool.utility.hasLocationPermission
 import lend.borrow.tool.utility.shimmerBrush
@@ -238,8 +237,8 @@ fun TabScreen(toolsViewModel: ToolsViewModel, navController: NavController)   {
                     Icon(imageVector = Icons.Outlined.Search, contentDescription = "search")
                 }
             },
-            label = {
-                Text(text = "I need")
+            placeholder = {
+                Text(text = if (loggedInUser == null) "Search" else "Explain what you need")
             },
             colors = TextFieldDefaults.colors(
                 focusedIndicatorColor = backgroundColor,
@@ -497,7 +496,7 @@ fun Context.getResponseFromAI(question: String, onSuccessCallBack: (List<String>
                     val textResult =
                         jsonArray.getJSONObject(0).getJSONObject("message").getString("content")
                             .replace("\\", "")
-                    val list: List<String> = Json.decodeFromString(textResult)
+                    val list: List<String> = textResult.split(",")
                     onSuccessCallBack(list)
                 }
             else

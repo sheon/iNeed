@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import lend.borrow.tool.shared.R
-import lend.borrow.tool.utility.LogCompositions
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -50,7 +49,6 @@ fun ChatroomScreen(conversationId: String, loggedInUser: User, toUserId: String)
     val chatroomViewModel:  ChatroomViewModel= viewModel {
         ChatroomViewModel (conversationId, toUserId, application)
     }
-    LogCompositions("Ehsan", "ChatroomScreen")
     ChatroomContent(chatroomViewModel, loggedInUser)
 }
 
@@ -60,10 +58,8 @@ fun ChatroomContent(
     loggedInUser: User
 ){
 
-    LogCompositions("Ehsan", "ChatroomContent")
     Column(Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween) {
-        LogCompositions("Ehsan", "ChatroomContent column")
         MessageListScreen(chatroomViewModel, loggedInUser, chatroomViewModel.toUser, Modifier
             .weight(1f)
             .fillMaxWidth())
@@ -74,14 +70,12 @@ fun ChatroomContent(
 @Composable
 fun MessageListScreen(chatroomViewModel: ChatroomViewModel, me: User, toUser: User, modifier: Modifier){
     val messages = chatroomViewModel.messageListState.sortedBy { it.timeStampInSecond }
-    LogCompositions("Ehsan", "MessageListScreen ${messages.map { it.messageId }}")
     val scrollState = rememberLazyListState()
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) scrollState.animateScrollToItem(messages.size - 1)
     }
 
     Column(modifier) {
-        LogCompositions("Ehsan", "MessageListScreen column")
         LazyColumn (
             state = scrollState
         ) {
@@ -89,7 +83,6 @@ fun MessageListScreen(chatroomViewModel: ChatroomViewModel, me: User, toUser: Us
                 key = {
                     it.messageId
                 }) { item ->
-                LogCompositions("Ehsan", "MessageListScreen lazy column content")
                 ChatItemBubble(item, item.fromUserId == me.id, toUser)
             }
         }
@@ -98,7 +91,6 @@ fun MessageListScreen(chatroomViewModel: ChatroomViewModel, me: User, toUser: Us
 
 @Composable
 fun SendMessage(chatroomViewModel: ChatroomViewModel, loggedInUser: User) {
-    LogCompositions("Ehsan", "SendMessage")
     val backgroundColor = Color(LocalContext.current.resources.getColor(R.color.primary))
     var message by rememberSaveable { mutableStateOf("") }
     OutlinedTextField(
@@ -147,7 +139,6 @@ fun ChatItemBubble(
     isUserMe: Boolean,
     otherUser: User
 ) {
-    LogCompositions("Ehsan", "ChatItemBubble")
     val backgroundColor = Color(LocalContext.current.resources.getColor(R.color.primary))
     val calendar = Calendar.getInstance()
     val formatter = SimpleDateFormat(
@@ -161,7 +152,6 @@ fun ChatItemBubble(
             .padding(10.dp),
         horizontalAlignment = if(isUserMe) Alignment.End else Alignment.Start
     ) {
-        LogCompositions("Ehsan", "ChatItemBubble column")
         Text(formatter.format(calendar.time), color = Color.LightGray, fontSize = 10.sp)
         Spacer(Modifier.height(2.dp))
         Column(
